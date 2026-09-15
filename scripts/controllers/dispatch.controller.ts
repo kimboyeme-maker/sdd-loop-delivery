@@ -3,6 +3,7 @@ import { leaseSlots, shardLeases } from '../helpers/lease-slots'
 import { nextControlRevision } from '../domain/policies/control-revision'
 import { assertDesignIndependence } from '../helpers/design-independence'
 import { assertRuntimeGuidance } from '../helpers/runtime-guidance'
+import { assertProgramExecution } from '../services/program-execution'
 import rolePolicy from '../../agents/roles.json'
 import { operatorRuntime, runtimeMatches } from '../config/host'
 import { preparedContext } from '../helpers/prepared-context'
@@ -151,6 +152,13 @@ export function dispatch(
   const current = String(state.phase ?? '')
   assertExpected(state, expectedState, expectedRevision)
   assertCoordinatorToken(state, token)
+  const programContext = assertProgramExecution(
+    sdd,
+    state,
+    options.packet,
+    counsel || options.repairProbeRoot ? 'read' : 'dispatch',
+    options.worktreeRoot
+  )
   // Stop the next implementation before it runs, rather than rejecting its accounting later.
   // The sixth candidate may still receive its independent/final verification.
   if (
@@ -307,12 +315,13 @@ export function dispatch(
   if (
     !options.repairProbeRoot &&
     !options.guidanceId &&
-    history.some(
-      (event) =>
-        event.type === 'runtime_record' &&
-        (event.payload as Record<string, unknown> | undefined)?.action === 'observe' &&
-        (event.payload as Record<string, unknown>).agent_id === agentId
-    )
+    (programContext !== null ||
+      history.some(
+        (event) =>
+          event.type === 'runtime_record' &&
+          (event.payload as Record<string, unknown> | undefined)?.action === 'observe' &&
+          (event.payload as Record<string, unknown>).agent_id === agentId
+      ))
   )
     throw new Error('RUNTIME_GUIDANCE_REQUIRED')
   if (options.guidanceId) {
@@ -336,6 +345,11 @@ export function dispatch(
     )
       throw new Error('GUIDANCE_BINDING_INVALID')
     assertRuntimeGuidance(sdd, state, events, guidance, token)
+    if (
+      programContext &&
+      JSON.stringify(guidance.program_context) !== JSON.stringify(programContext)
+    )
+      throw new Error('PROGRAM_GUIDANCE_STALE')
     if (agent === 'operator') {
       const selected = String(
         guidance.operator_profile ?? rolePolicy.roles.operator.default_profile

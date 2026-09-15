@@ -1,6 +1,7 @@
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { createHash } from "node:crypto";
-import { dirname, join } from "node:path";
+import { createHash, randomUUID } from "node:crypto";
+import { dirname, join, resolve } from "node:path";
+import { runtimeRecord } from "../../scripts/controllers/runtime-record.controller";
 import { admissionFixture } from "./admission";
 import { initLoop } from "../../scripts/controllers/init.controller";
 import { authBootstrap } from "../../scripts/controllers/auth-bootstrap.controller";
@@ -30,6 +31,11 @@ export type NativeChainOptions = Readonly<{
   contract?: Item;
   /** Complete admission payload; its first modification package receives the product file. */
   admission?: Item;
+  /** An existing SDD and product worktree (program children); setup then writes neither. */
+  sdd?: string;
+  workspace?: string;
+  /** Record signed Coordinator guidance before every dispatch and acknowledge it at start. */
+  guided?: boolean;
 }>;
 
 /**
@@ -38,8 +44,8 @@ export type NativeChainOptions = Readonly<{
  * Callers must invoke `restore()` in a finally block to reset process tokens.
  */
 export function createNativeChain(root: string, options: NativeChainOptions = {}) {
-  const workspace = join(root, "product"),
-    sdd = join(root, "task.md");
+  const workspace = options.workspace ?? join(root, "product"),
+    sdd = options.sdd ?? join(root, "task.md");
   const previous = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
   process.env.SDD_LOOP_COORDINATOR_TOKEN = COORDINATOR;
   process.env.SDD_LOOP_CAPABILITY_DIR = join(root, "capabilities");
@@ -82,6 +88,52 @@ export function createNativeChain(root: string, options: NativeChainOptions = {}
     extras: StartExtras = {},
   ) => {
     const current = phase();
+    let guidanceId: string | undefined;
+    if (options.guided) {
+      const s = state();
+      const previous = readFileSync(sdd + ".events.jsonl", "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line) as Item)
+        .findLast(
+          (event) => event.type === "runtime_record" && (event.payload as Item | undefined)?.agent_id === agentId,
+        );
+      // Signed payloads are canonical JSON; fields the fixture state lacks are omitted, not undefined.
+      const defined = (value: Item): Item => JSON.parse(JSON.stringify(value));
+      guidanceId = runtimeRecord(
+        sdd,
+        "coordinator",
+        current,
+        "v1",
+        defined({
+          id: `guidance-${randomUUID()}`,
+          agent_id: agentId,
+          agent_role: role,
+          action: "guidance",
+          evidence: "fixture guidance",
+          controller: resolve(sdd),
+          coordinator_agent_id: s.coordinator_agent_id,
+          authority_epoch: s.authority_epoch,
+          previous_record_id: previous?.event_id ?? null,
+          contract_revision: s.contract_revision,
+          sdd_fingerprint: s.sdd_fingerprint,
+          work_item: "fixture assignment",
+          packet_id: packet ?? null,
+          guidance: {
+            outcome: "return two",
+            steps: ["change the value producer"],
+            checks: ["run the fixture check"],
+            checkpoint_triggers: ["check fails"],
+            stop_conditions: ["scope differs"],
+            preserve: [],
+            basis_event_ids: [],
+            finding_ids: [],
+            modification_packages: role === "operator" ? [...scope] : [],
+          },
+        }),
+        COORDINATOR,
+      ).eventId;
+    }
     const lease = dispatch(
       sdd,
       "coordinator",
@@ -94,7 +146,11 @@ export function createNativeChain(root: string, options: NativeChainOptions = {}
       scope,
       "fixture assignment",
       COORDINATOR,
-      { ...(role === "operator" ? { worktreeRoot: workspace } : {}), ...(packet ? { packet } : {}) },
+      {
+        ...(role === "operator" ? { worktreeRoot: workspace } : {}),
+        ...(packet ? { packet } : {}),
+        ...(guidanceId ? { guidanceId } : {}),
+      },
     );
     // The runtime receives only the locator; the Coordinator never supplies the token.
     process.env.SDD_LOOP_AGENT_TOKEN_FILE = lease.capabilityFile;
@@ -113,7 +169,16 @@ export function createNativeChain(root: string, options: NativeChainOptions = {}
       "v1",
       COORDINATOR,
       undefined,
-      extras,
+      guidanceId
+        ? {
+            guidanceResponse: {
+              next_action: "change the value producer",
+              check_method: "run the fixture check",
+              stop_condition: "scope differs",
+            },
+            ...extras,
+          }
+        : extras,
     );
     return lease.leaseId;
   };
@@ -164,6 +229,12 @@ export function createNativeChain(root: string, options: NativeChainOptions = {}
     },
     /** Initialize a git product and reach CONTRACT_DRAFT without admission. */
     setup() {
+      if (options.sdd) {
+        initLoop(sdd, 4);
+        authBootstrap(sdd, "DISCOVER", "v1", "yes", COORDINATOR);
+        advance("ARCHITECT", "CONTRACT_DRAFT");
+        return;
+      }
       mkdirSync(join(workspace, dirname(productFile)), { recursive: true });
       Bun.spawnSync(["git", "init", "-q"], { cwd: workspace });
       writeFileSync(join(workspace, productFile), "export const value = 1;");

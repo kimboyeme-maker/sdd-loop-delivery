@@ -4,7 +4,7 @@ import { hostname } from 'node:os'
 
 /**
  * Create the exclusive controller lock and record its owner inside it.
- * The random nonce makes every lock instance's SHA-256 unique, so `lock-recover
+ * The random nonce makes every lock instance's SHA-256 unique, so `recover --kind lock
  * --expected-lock-hash` names one exact orphan instead of any lock ever taken.
  */
 export function acquireControlLock(path: string): number {

@@ -33,7 +33,14 @@ export const HOST_OPERATIONS = [
   'turn_steer',
   'turn_interrupt',
   'usage_read',
-  'user_goal_control'
+  'user_goal_control',
+  // Cross-SDD workflow: independent top-level tasks, each in its own worktree.
+  'task_create',
+  'task_message',
+  'task_wait',
+  'task_list',
+  'wake_schedule',
+  'project_discover'
 ] as const
 export type HostOperation = (typeof HOST_OPERATIONS)[number]
 

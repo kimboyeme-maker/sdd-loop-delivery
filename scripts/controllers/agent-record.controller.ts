@@ -24,6 +24,7 @@ import { requireOperatorGoalAck } from '../helpers/operator-goal'
 import { readContractDocument } from '../services/contract-document'
 import { assertExecutionBindings } from '../helpers/execution-bindings'
 import { requireGuidanceAck } from '../helpers/guidance-ack'
+import { assertProgramExecution } from '../services/program-execution'
 import { assertDependencyPlan } from '../schemas/dependency-operation'
 import { assertDependencyReviewPlan } from '../helpers/dependency-evidence'
 import { assertRoleReceipt } from '../schemas/role-receipt'
@@ -248,6 +249,15 @@ export function agentRecord(
   const eventId = `EVT-${randomUUID()}`
   let packetCandidate: Record<string, unknown> | undefined
   if (type === 'implementation') {
+    assertProgramExecution(
+      sdd,
+      state,
+      (lease as Record<string, unknown>).packet_id,
+      'implementation',
+      typeof (lease as Record<string, unknown>).worktree_root === 'string'
+        ? String((lease as Record<string, unknown>).worktree_root)
+        : undefined
+    )
     const candidate = (payload as Record<string, unknown>).candidate
     if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
       throw new Error('CANDIDATE_INVALID')

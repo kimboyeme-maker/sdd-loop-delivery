@@ -1,5 +1,6 @@
 import { shardLeases } from '../helpers/lease-slots'
 import { processView } from '../services/process-view'
+import { programExecutionView } from '../services/program-execution'
 import { currentEpochAuthentication } from '../services/event-authentication'
 import { runtimeCandidates } from '../services/runtime-candidates'
 import { progressView } from '../services/progress-view'
@@ -77,7 +78,10 @@ export function capabilities(): object {
       coordinator_brief: 'coordinator-brief/v1',
       controller_measured_tests: 'test-run/v1',
       credit_ledger: 'credit-ledger/v1',
-      program_status: 'program-status/v1',
+      program_structure: 'sdd-program/v1',
+      program_workflow: 'sdd-workflow/v1',
+      program_host_execution: 'host-agent-mediated',
+      program_test_budget: 'nonrefundable-timeout-reservations/v1',
       bootstrap_helper: 'three-process/v1',
       direct_role_authorship: 'agent-record',
       pipeline_incidents_isolated_from_product_counters: true,
@@ -124,7 +128,8 @@ export function status(sdd: string, compact = false): object {
     preparation: publicPreparation(state.preparation),
     authorityEpoch: snapshot.state.authority_epoch ?? null,
     progress_view: progressView(sdd, state, events),
-    process_view: processView(state)
+    process_view: processView(state),
+    program_context: programExecutionView(sdd, state)
   }
   if (!compact) return full
   const requirements = state.requirements

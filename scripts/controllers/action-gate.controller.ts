@@ -12,6 +12,7 @@ import { assertDependencyPlan, dependencyPlanFingerprint } from '../schemas/depe
 import { assertRecordedDependencyDecision } from '../helpers/dependency-evidence'
 import { requireGuidanceAck } from '../helpers/guidance-ack'
 import { assertStartedEvidence } from '../helpers/started-evidence'
+import { assertProgramExecution } from '../services/program-execution'
 import { normalizeOwner, type OwnerMapping } from '../domain/policies/scope'
 type Item = Record<string, unknown>
 export type ActionRequest = {
@@ -109,6 +110,13 @@ export function preActionGate(
   if (affected.some((item) => !authorized.includes(normalizeOwner(item, mappings))))
     deny('PACKAGE_OUTSIDE_MODIFICATION_AUTHORITY')
   requireGuidanceAck(state, events, lease, coordinatorToken)
+  assertProgramExecution(
+    request.sdd,
+    state,
+    lease.packet_id,
+    'write',
+    typeof lease.worktree_root === 'string' ? lease.worktree_root : undefined
+  )
   const admission = currentAdmission(state, events, coordinatorToken).payload as Item
   if (request.dependencyEffect !== 'NONE') {
     const plans = new Map<unknown, Item>()

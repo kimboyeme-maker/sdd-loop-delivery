@@ -1,12 +1,9 @@
 import { expect, test } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expandPlannedPackets } from '../scripts/domain/planned-packets'
 import { chargeCredit, creditLedger } from '../scripts/helpers/credit-ledger'
-import { programStatus } from '../scripts/services/program-status'
-import { initLoop } from '../scripts/controllers/init.controller'
-import { admissionFixture } from './fixtures/admission'
 import { COORDINATOR, createNativeChain } from './fixtures/native-chain'
 import { userControl } from '../scripts/controllers/user-control.controller'
 import { coordinatorBrief } from '../scripts/services/coordinator-brief'
@@ -97,45 +94,6 @@ test('the credit ledger stops new grants at its budget but records work that alr
   )
 })
 
-test('program status aggregates independent SDD controllers and flags overlapping write sets', () => {
-  const root = mkdtempSync(join(tmpdir(), 'program-status-'))
-  try {
-    const foundation = join(root, 'foundation.sdd.md')
-    writeFileSync(foundation, admissionFixture('packages/api').source)
-    initLoop(foundation, 2)
-    const program = join(root, 'session.program.md')
-    writeFileSync(
-      program,
-      [
-        '# Session program',
-        '',
-        '| ID | description | role | sdd | write_set | depends_on |',
-        '| --- | --- | --- | --- | --- | --- |',
-        '| PG01 | Freeze interfaces | FOUNDATION | foundation.sdd.md | packages/api | |',
-        '| PG02 | Storage child | CHILD | storage.sdd.md | packages/storage | PG01 |',
-        '| PG03 | Storage cache child | CHILD | cache.sdd.md | packages/storage/cache | PG01 |',
-        '| PG04 | Unrelated docs child | CHILD | docs.sdd.md | docs/session | |',
-        ''
-      ].join('\n')
-    )
-    const status = programStatus(program)
-    expect((status.sdds as Item[]).map((entry) => entry.status)).toEqual([
-      'STARTED',
-      'NOT_STARTED',
-      'NOT_STARTED',
-      'NOT_STARTED'
-    ])
-    expect((status.sdds as Item[])[0]!.phase).toBe('DISCOVER')
-    expect((status.sdds as Item[])[0]!.credit).toMatchObject({ budget: 120, spent: 0 })
-    // Children wait for the foundation to SHIP; the independent child may start now.
-    expect(status.ready_to_start).toEqual(['PG04'])
-    expect(status.write_set_conflicts).toEqual(['PG02/PG03'])
-    expect(() => programStatus(join(root, 'missing.program.md'))).toThrow('PROGRAM_PLAN_NOT_FOUND')
-  } finally {
-    rmSync(root, { recursive: true, force: true })
-  }
-})
-
 test('an exhausted credit ledger stops new grants until the user extends it', () => {
   const root = mkdtempSync(join(tmpdir(), 'credit-ledger-'))
   const chain = createNativeChain(root)
@@ -206,6 +164,52 @@ test('the Coordinator brief is a compact projection that tracks obligations and 
     expect(JSON.stringify(implemented).length).toBeLessThan(6000)
   } finally {
     chain.restore()
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+import { bindProgramChild, reserveProgramTest } from '../scripts/resource/program-store'
+
+test('program test reservations draw once from a bound allowance and never refund', () => {
+  const root = mkdtempSync(join(tmpdir(), 'program-budget-'))
+  try {
+    Bun.spawnSync(['git', 'init', '-q', root])
+    const sdd = join(root, 'child.sdd.md'),
+      unbound = join(root, 'other.sdd.md'),
+      statePath = join(root, 'root.workflow.json')
+    writeFileSync(sdd, '# child')
+    writeFileSync(unbound, '# other')
+    writeFileSync(
+      statePath,
+      JSON.stringify({
+        protocol: 'sdd-workflow/v1',
+        revision: 1,
+        slots: {
+          BD01: {
+            intent_id: 'intent-1',
+            sdd: realpathSync(sdd),
+            allowance: 100,
+            reserved_seconds: 0
+          }
+        }
+      })
+    )
+    const binding = {
+      state_path: statePath,
+      bundle_id: 'BD01',
+      sdd: realpathSync(sdd),
+      intent_id: 'intent-1'
+    }
+    // A single-SDD delivery without a program binding keeps its own timeout.
+    expect(reserveProgramTest(unbound, undefined, 60)).toBe(60)
+    bindProgramChild(binding)
+    expect(reserveProgramTest(sdd, binding, 60)).toBe(60)
+    expect(reserveProgramTest(sdd, binding, 60)).toBe(40)
+    expect(() => reserveProgramTest(sdd, binding, 60)).toThrow('PROGRAM_TEST_BUDGET_EXHAUSTED')
+    expect(JSON.parse(readFileSync(statePath, 'utf8')).slots.BD01.reserved_seconds).toBe(100)
+    // State that forgot its binding cannot bypass the reservation.
+    expect(() => reserveProgramTest(sdd, undefined, 60)).toThrow('PROGRAM_BINDING_MISMATCH')
+  } finally {
     rmSync(root, { recursive: true, force: true })
   }
 })

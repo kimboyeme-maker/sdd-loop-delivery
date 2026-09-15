@@ -47,6 +47,12 @@
     "turn_steer": { "available": true, "kind": "host-method", "call": "turn/steer", "params": ["threadId", "input", "expectedTurnId"] },
     "turn_interrupt": { "available": true, "kind": "host-method", "call": "turn/interrupt", "params": ["threadId", "turnId"] },
     "usage_read": { "available": true, "kind": "host-method", "call": "account/usage/read", "params": [] },
-    "user_goal_control": { "available": true, "kind": "user-command", "call": "/goal pause|resume|clear", "params": [] }
+    "user_goal_control": { "available": true, "kind": "user-command", "call": "/goal pause|resume|clear", "params": [] },
+    "task_create": { "available": true, "kind": "model-tool", "call": "create_thread", "params": ["project_id", "host_id", "base_commit", "prompt", "worktree"], "notes": "Desktop thread tools; confirm the live schema. Bind the final thread id, not clientThreadId." },
+    "task_message": { "available": true, "kind": "model-tool", "call": "send_message_to_thread", "params": ["thread_id", "message"] },
+    "task_wait": { "available": true, "kind": "model-tool", "call": "wait_threads", "params": ["thread_ids", "timeout_ms"] },
+    "task_list": { "available": false, "reason": "No verified thread-listing tool in the bundled profile. Reconcile an uncertain creation by its intent through the host UI or the user." },
+    "wake_schedule": { "available": true, "kind": "model-tool", "call": "automation_update", "params": ["prompt", "interval"], "notes": "Same-thread heartbeat; record the returned automation id." },
+    "project_discover": { "available": true, "kind": "model-tool", "call": "list_projects", "params": [] }
   }
 }

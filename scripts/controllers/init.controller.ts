@@ -1,5 +1,6 @@
 import { normativeSourceBinding } from '../helpers/source-binding'
 import { correlateEvent } from '../context/command-context'
+import { readProgramBinding } from '../resource/program-store'
 import { createHash } from 'node:crypto'
 import {
   closeSync,
@@ -108,8 +109,10 @@ export function initLoop(
     const source = readFileSync(canonicalSdd)
     const contract = readContractDocument(canonicalSdd, source.toString('utf8'))
     const lineageObligations = contract ? collectLineageObligations(canonicalSdd, contract) : []
+    const programBinding = readProgramBinding(canonicalSdd)
     const state = {
       protocol: 'control-plane/state-v2',
+      ...(programBinding ? { program_binding: programBinding } : {}),
       sdd: canonicalSdd,
       normative_sources: normativeSourceBinding(canonicalSdd, source),
       sdd_fingerprint: createHash('sha256').update(source).digest('hex'),

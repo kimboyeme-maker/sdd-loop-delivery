@@ -3,6 +3,7 @@ import { coordinatorProof, verifyCoordinatorProof } from '../resource/coordinato
 import { nextControlRevision } from '../domain/policies/control-revision'
 import { assertRuntimeLifecycle } from '../helpers/runtime-lifecycle'
 import { assertRuntimeGuidance } from '../helpers/runtime-guidance'
+import { assertProgramExecution } from '../services/program-execution'
 import { assertRuntimeSupervision } from '../helpers/runtime-supervision'
 import { correlateEvent } from '../context/command-context'
 import { createHmac, randomUUID } from 'node:crypto'
@@ -76,6 +77,10 @@ export function runtimeRecord(
     throw new Error('RUNTIME_BINDING_INVALID')
   if (input.authority_epoch !== state.authority_epoch) throw new Error('RUNTIME_BINDING_INVALID')
   const events = control.events()
+  if (input.action === 'guidance') {
+    const programContext = assertProgramExecution(sdd, state, input.packet_id, 'read')
+    if (programContext) input.program_context = programContext
+  }
   if (existsSync(paths.journal)) throw new Error('CONTROL_TRANSACTION_PENDING')
   const matches = events.filter(
     (event) =>

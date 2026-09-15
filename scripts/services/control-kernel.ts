@@ -108,6 +108,8 @@ export function coordinatorSecurity(token: string) {
 /**
  * Serialize one Coordinator event line. `proof` adds an epoch-verifiable coordinator_proof;
  * by default that requires the credential to match the epoch's registered public key.
+ * Without an explicit choice the proof is added whenever that key is registered, so readers
+ * that must not hold the credential (a program scheduler) can still authenticate the history.
  */
 export function signCoordinatorEvent(
   state: Item,
@@ -116,14 +118,15 @@ export function signCoordinatorEvent(
   options: Readonly<{ proof?: boolean; requireKeyBinding?: boolean }> = {}
 ): string {
   let value = body
-  if (options.proof) {
-    if (
-      options.requireKeyBinding !== false &&
-      (state.coordinator_event_keys as Item | undefined)?.[String(state.authority_epoch)] !==
-        rolePublicKey(token)
-    )
+  const bound =
+    (state.coordinator_event_keys as Item | undefined)?.[String(state.authority_epoch)] ===
+    rolePublicKey(token)
+  if (options.proof ?? bound) {
+    if (options.requireKeyBinding !== false && !bound)
       throw Error('COORDINATOR_EVENT_KEY_BINDING_INVALID')
-    value = { ...body, coordinator_proof: coordinatorProof(body, token) }
+    // The proof is verified against the key of the event's own epoch, so the epoch is part of it.
+    const epochBound = { ...body, authority_epoch: body.authority_epoch ?? state.authority_epoch }
+    value = { ...epochBound, coordinator_proof: coordinatorProof(epochBound, token) }
   }
   return `${JSON.stringify({
     ...value,

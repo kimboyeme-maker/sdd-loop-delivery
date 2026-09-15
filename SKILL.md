@@ -13,6 +13,10 @@ Configuration authority: [agents/roles.json](agents/roles.json) (role tiers), [a
 
 ## Invocation
 
+For `使用 sdd-loop-delivery 启动 <总SDD绝对路径> 的完整 workflow` or an explicit program resume, read [program workflow](references/program-workflow.md). The root carries `sdd-program/v1`; one host scheduling task advances independent execution-SDD tasks by dependency. Group documents are not duplicate implementation tasks. This program mode uses the program commands, not single-SDD init on the root. Do not start a workflow merely because create-sdd generated it. Single-SDD invocation below is unchanged.
+
+Program children require current guidance from their first product dispatch. Their shared execution guard checks the bound Bundle/batch and real input commits; handoff binds acceptance to candidate bytes and release pins the committed version. Follow the program reference for creation recovery, stopped-writer observations and missing-source stop/status.
+
 ```text
 $sdd-loop-delivery <sdd_doc_path> [max_rounds]
 $sdd-loop-delivery sdd_doc_path=<path> max_rounds=<rounds>
@@ -59,6 +63,7 @@ Read only the reference for the actually assigned role; transcripts or persona l
 - Architect: [architect](references/architect.md) and [execution](references/execution.md).
 - Route disproven or implementation logic under review: [design convergence](references/design-convergence.md).
 - Host tools, models and porting: [hosts](references/hosts.md).
+- Cross-SDD startup, task mapping, wake continuation, host program operations and program budget: [program workflow](references/program-workflow.md).
 - After SHIP/BLOCKED, retrospectives and skill evolution proposals: [evolution](references/evolution.md).
 - A rejected command code: [error codes](references/error-codes.md) (generated; remediation per category).
 - Role boundaries, identity and credentials, reading reuse: [roles](references/roles.md). Policy changes: [behavior evaluation](references/behavior-evaluation.md).

@@ -29,7 +29,7 @@ Never delete or hand-edit `<SDD>.loop.json`, `<SDD>.events.jsonl` or `<SDD>.tran
 A commit was interrupted after its journal was written.
 
 1. Confirm in the host that the previous Coordinator and its commands have stopped. An idle label or silence is not proof.
-2. Run `$LOOP transaction-recover --sdd $SDD --role coordinator --expected-state <phase> --expected-revision <rev> --all-previous-writers-stopped yes`.
+2. Run `$LOOP recover --kind transaction --sdd $SDD --role coordinator --expected-state <phase> --expected-revision <rev> --all-previous-writers-stopped yes`.
 3. Verify: `status` succeeds and `audit` reports `valid: true`. Recovery finishes the original commit; it does not redo product work.
 
 ### Every command fails with `CONTROL_TRANSACTION_IN_PROGRESS` for minutes
@@ -38,7 +38,7 @@ A lock was left by a process that died.
 
 1. Confirm the owner stopped (the lock file names its `pid` and `host`).
 2. Hash the lock: `shasum -a 256 $SDD.loop.lock`.
-3. Run `$LOOP lock-recover --sdd $SDD --expected-lock-hash <sha256> --owner-stopped yes --user-authorized yes`. `LOCK_OWNER_STILL_ACTIVE` or `LOCK_OWNER_POSSIBLY_ACTIVE` means the process is alive: stop it first.
+3. Run `$LOOP recover --kind lock --sdd $SDD --expected-lock-hash <sha256> --owner-stopped yes --user-authorized yes`. `LOCK_OWNER_STILL_ACTIVE` or `LOCK_OWNER_POSSIBLY_ACTIVE` means the process is alive: stop it first.
 4. If a journal remains, continue with the previous section. Verify with `status`.
 
 ### A test command hangs, or an agent disappeared while its tests were running
@@ -69,8 +69,8 @@ The command ran, but authority changed before its result could be recorded (revi
 
 1. Stop it and every command it started. Recover any pending transaction first.
 2. Spawn the new Coordinator and save the host's spawn receipt to a file.
-3. Before delivery started: `$LOOP bootstrap-recover --sdd $SDD --expected-state <phase> --expected-revision <rev> --reason '<why>' --all-previous-writers-stopped yes --coordinator-agent-id <new id> --runtime-receipt-file <receipt>`.
-4. Later: `$LOOP coordinator-takeover` with the same flags plus `--user-authorized yes`.
+3. Before delivery started: `$LOOP recover --kind bootstrap --sdd $SDD --expected-state <phase> --expected-revision <rev> --reason '<why>' --all-previous-writers-stopped yes --coordinator-agent-id <new id> --runtime-receipt-file <receipt>`.
+4. Later: `$LOOP recover --kind takeover` with the same flags plus `--user-authorized yes`.
 5. The command returns a new `capabilityFile`; give it only to the new Coordinator. Verify with `audit` (new epoch) and `coordinator-brief`.
 
 ### `CREDIT_BUDGET_EXHAUSTED`
@@ -89,7 +89,7 @@ The real SHIP gate refused. `ship_gate.message` names the reason; look the code 
 
 Commands inside a round check only the current round's lines; `audit` checks the whole history. Run `audit` after any manual copy, restore or edit near the sidecars.
 
-- Tail ahead: an interrupted commit left extra events. Recover the transaction, or adopt the tail through `coordinator-takeover`.
+- Tail ahead: an interrupted commit left extra events. Recover the transaction, or adopt the tail through `recover --kind takeover`.
 - History mismatch: committed events were changed. No command repairs this. Preserve all files, report the incident and restore the sidecars from an intact copy only if you decide to.
 
 ### Agents cannot be spawned (host thread limit)

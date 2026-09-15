@@ -20,6 +20,9 @@ import { readContractDocument } from '../services/contract-document'
 import { runInProcessGroup } from '../resource/process-group'
 import { agentRecord } from './agent-record.controller'
 import { prepareRecord } from './prepare-record.controller'
+import { reserveProgramTest } from '../resource/program-store'
+import { assertProgramExecution } from '../services/program-execution'
+import { requireGuidanceAck } from '../helpers/guidance-ack'
 
 type Item = Record<string, unknown>
 const object = (value: unknown): Item | undefined =>
@@ -221,8 +224,13 @@ export function testRun(
   }
   chargeCredit(launch.state, creditWeight('test_minute'))
   const env = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !/^SDD_LOOP_.*TOKEN/.test(key))
+    Object.entries(process.env).filter(([key]) => !/^SDD_(?:LOOP|PROGRAM)_.*TOKEN/.test(key))
   )
+  // Program reservation covers every role, round and retry. It never grants test permission.
+  if (lease && launch.state.program_binding)
+    requireGuidanceAck(launch.state, launch.events(), lease, coordinatorToken)
+  assertProgramExecution(sdd, launch.state, lease?.packet_id, 'test')
+  timeout = reserveProgramTest(sdd, launch.state.program_binding, timeout)
   const run = runInProcessGroup({
     sdd,
     argv,

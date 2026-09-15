@@ -25,7 +25,15 @@ import { hostReceipt } from '../controllers/host.controller'
 import { initLoop } from '../controllers/init.controller'
 import { testRun } from '../controllers/test-run.controller'
 import { coordinatorBrief, coordinatorEvent } from '../services/coordinator-brief'
-import { programStatus } from '../services/program-status'
+import { programCheck } from '../services/program-contract'
+import {
+  workflowStatus,
+  programStart,
+  programNext,
+  programRecord,
+  programPause,
+  programRecoverLock
+} from '../services/program-workflow'
 import { runtimePlan } from '../services/runtime-plan'
 import { processReclaim } from '../controllers/process-reclaim.controller'
 import { TEST_PRESETS } from '../config/test-presets'
@@ -207,6 +215,95 @@ const documentCommand = (name: string): Handler =>
     )
   })
 
+/** `status --view` selects one read-only projection; `summary` is the default. */
+const STATUS_VIEWS: Readonly<Record<string, string>> = {
+  summary: 'status',
+  resume: 'resume-view',
+  runtime: 'runtime-view'
+}
+
+/**
+ * `recover --kind` operations. Each keeps its own required inputs and authority checks; the
+ * shared entry point only selects one, and option validation already rejected foreign flags.
+ */
+const RECOVERY: Readonly<Record<string, Handler>> = {
+  lock: mutation('LOCK_RECOVER_FAILED', ({ need }) => {
+    const [sdd, hash, stopped, authorized] = need(
+      'LOCK_RECOVER_ARGS_REQUIRED: pass --sdd --expected-lock-hash --owner-stopped --user-authorized',
+      '--sdd',
+      '--expected-lock-hash',
+      '--owner-stopped',
+      '--user-authorized'
+    )
+    return ok(lockRecover(sdd!, hash!, stopped!, authorized!))
+  }),
+  transaction: mutation('TRANSACTION_RECOVER_FAILED', ({ need }) => {
+    const [sdd, role, state, revision, stopped] = need(
+      'TRANSACTION_RECOVER_ARGS_REQUIRED: pass --sdd --role --expected-state --expected-revision --all-previous-writers-stopped',
+      '--sdd',
+      '--role',
+      '--expected-state',
+      '--expected-revision',
+      '--all-previous-writers-stopped'
+    )
+    return ok(transactionRecover(sdd!, role!, state!, revision!, stopped!))
+  }),
+  takeover: mutation('COORDINATOR_TAKEOVER_FAILED', ({ value, need }) => {
+    const [sdd, state, revision, reason, authorized, stopped, nextId] = need(
+      'COORDINATOR_TAKEOVER_ARGS_REQUIRED: pass --sdd --expected-state --expected-revision --reason --user-authorized --all-previous-writers-stopped --coordinator-agent-id',
+      '--sdd',
+      '--expected-state',
+      '--expected-revision',
+      '--reason',
+      '--user-authorized',
+      '--all-previous-writers-stopped',
+      '--coordinator-agent-id'
+    )
+    const capabilityFile = mintCoordinatorCredential('SDD_LOOP_NEW_COORDINATOR_TOKEN')
+    const receipt = value('--runtime-receipt-file')
+    const result = coordinatorTakeover(
+      sdd!,
+      state!,
+      revision!,
+      reason!,
+      authorized!,
+      stopped!,
+      nextId!,
+      undefined,
+      undefined,
+      receipt ? readJson(receipt) : undefined,
+      capabilityFile
+    )
+    return ok({ ...result, ...(capabilityFile ? { capabilityFile } : {}) })
+  }),
+  bootstrap: mutation('BOOTSTRAP_RECOVER_FAILED', ({ value, need }) => {
+    const [sdd, state, revision, reason, stopped, nextId] = need(
+      'BOOTSTRAP_RECOVER_ARGS_REQUIRED: pass --sdd --expected-state --expected-revision --reason --all-previous-writers-stopped --coordinator-agent-id',
+      '--sdd',
+      '--expected-state',
+      '--expected-revision',
+      '--reason',
+      '--all-previous-writers-stopped',
+      '--coordinator-agent-id'
+    )
+    const capabilityFile = mintCoordinatorCredential('SDD_LOOP_NEW_COORDINATOR_TOKEN')
+    const receipt = value('--runtime-receipt-file')
+    const result = bootstrapRecover(
+      sdd!,
+      state!,
+      revision!,
+      reason!,
+      stopped!,
+      nextId!,
+      undefined,
+      undefined,
+      receipt ? readJson(receipt) : undefined,
+      capabilityFile
+    )
+    return ok({ ...result, ...(capabilityFile ? { capabilityFile } : {}) })
+  })
+}
+
 /** Composition root: every registered command and the controller it calls. */
 export const HANDLERS: Readonly<Record<string, Handler>> = {
   configuration: report('CONFIGURATION_FAILED', () => ok(configuration())),
@@ -222,13 +319,13 @@ export const HANDLERS: Readonly<Record<string, Handler>> = {
     )
     return ok(nextDocumentId(sdd!, prefix!))
   }),
-  status: view('status'),
+  status: report('STATUS_FAILED', (flags) =>
+    view(STATUS_VIEWS[flags.value('--view') ?? 'summary'] ?? 'status').run(flags)
+  ),
   'context-view': view('context-view'),
   'context-read': view('context-read'),
   'coordinator-brief': view('coordinator-brief'),
   audit: view('audit'),
-  'resume-view': view('resume-view'),
-  'runtime-view': view('runtime-view'),
   'agent-bootstrap': mutation('BOOTSTRAP_FAILED', ({ value, has, need }) => {
     if (has('--receipts-file')) {
       const receipts = value('--receipts-file')
@@ -352,69 +449,12 @@ export const HANDLERS: Readonly<Record<string, Handler>> = {
       )
     )
   }),
-  'lock-recover': mutation('LOCK_RECOVER_FAILED', ({ need }) => {
-    const [sdd, hash, stopped, authorized] = need(
-      'LOCK_RECOVER_ARGS_REQUIRED: pass --sdd --expected-lock-hash --owner-stopped --user-authorized',
-      '--sdd',
-      '--expected-lock-hash',
-      '--owner-stopped',
-      '--user-authorized'
-    )
-    return ok(lockRecover(sdd!, hash!, stopped!, authorized!))
-  }),
-  'coordinator-takeover': mutation('COORDINATOR_TAKEOVER_FAILED', ({ value, need }) => {
-    const [sdd, state, revision, reason, authorized, stopped, nextId] = need(
-      'COORDINATOR_TAKEOVER_ARGS_REQUIRED: pass --sdd --expected-state --expected-revision --reason --user-authorized --all-previous-writers-stopped --coordinator-agent-id',
-      '--sdd',
-      '--expected-state',
-      '--expected-revision',
-      '--reason',
-      '--user-authorized',
-      '--all-previous-writers-stopped',
-      '--coordinator-agent-id'
-    )
-    const capabilityFile = mintCoordinatorCredential('SDD_LOOP_NEW_COORDINATOR_TOKEN')
-    const receipt = value('--runtime-receipt-file')
-    const result = coordinatorTakeover(
-      sdd!,
-      state!,
-      revision!,
-      reason!,
-      authorized!,
-      stopped!,
-      nextId!,
-      undefined,
-      undefined,
-      receipt ? readJson(receipt) : undefined,
-      capabilityFile
-    )
-    return ok({ ...result, ...(capabilityFile ? { capabilityFile } : {}) })
-  }),
-  'bootstrap-recover': mutation('BOOTSTRAP_RECOVER_FAILED', ({ value, need }) => {
-    const [sdd, state, revision, reason, stopped, nextId] = need(
-      'BOOTSTRAP_RECOVER_ARGS_REQUIRED: pass --sdd --expected-state --expected-revision --reason --all-previous-writers-stopped --coordinator-agent-id',
-      '--sdd',
-      '--expected-state',
-      '--expected-revision',
-      '--reason',
-      '--all-previous-writers-stopped',
-      '--coordinator-agent-id'
-    )
-    const capabilityFile = mintCoordinatorCredential('SDD_LOOP_NEW_COORDINATOR_TOKEN')
-    const receipt = value('--runtime-receipt-file')
-    const result = bootstrapRecover(
-      sdd!,
-      state!,
-      revision!,
-      reason!,
-      stopped!,
-      nextId!,
-      undefined,
-      undefined,
-      receipt ? readJson(receipt) : undefined,
-      capabilityFile
-    )
-    return ok({ ...result, ...(capabilityFile ? { capabilityFile } : {}) })
+  recover: mutation('RECOVER_FAILED', (flags) => {
+    const kind = flags.value('--kind')
+    const handler = kind === undefined ? undefined : RECOVERY[kind]
+    if (!handler)
+      throw new UsageError('RECOVER_KIND_REQUIRED: pass --kind lock|transaction|takeover|bootstrap')
+    return handler.run(flags)
   }),
   'auth-bootstrap': mutation('AUTH_BOOTSTRAP_FAILED', ({ value, need }) => {
     const [sdd, state, revision, authorized] = need(
@@ -453,17 +493,6 @@ export const HANDLERS: Readonly<Record<string, Handler>> = {
       throw new Error('RUNTIME_PAYLOAD_INVALID')
     }
     return ok(runtimeRecord(sdd!, role!, value('--expected-state'), revision!, payload))
-  }),
-  'transaction-recover': mutation('TRANSACTION_RECOVER_FAILED', ({ need }) => {
-    const [sdd, role, state, revision, stopped] = need(
-      'TRANSACTION_RECOVER_ARGS_REQUIRED: pass --sdd --role --expected-state --expected-revision --all-previous-writers-stopped',
-      '--sdd',
-      '--role',
-      '--expected-state',
-      '--expected-revision',
-      '--all-previous-writers-stopped'
-    )
-    return ok(transactionRecover(sdd!, role!, state!, revision!, stopped!))
   }),
   prepare: mutation('PREPARE_FAILED', ({ has, need }) => {
     const message =
@@ -759,12 +788,49 @@ export const HANDLERS: Readonly<Record<string, Handler>> = {
       )
     )
   }),
-  'program-status': report('PROGRAM_STATUS_FAILED', ({ value }) => {
-    const program = value('--program')
-    if (!program)
-      throw new Error('PROGRAM_REQUIRED: pass --program /absolute/path/to/plan.program.md')
-    return ok(programStatus(program))
+  'program-check': report('PROGRAM_CHECK_FAILED', ({ need }) => {
+    const [program] = need('PROGRAM_REQUIRED', '--program')
+    return ok(programCheck(program!))
   }),
+  'workflow-status': report('PROGRAM_STATUS_FAILED', ({ value }) => {
+    const program = value('--program'),
+      run = value('--run')
+    if ((!program && !run) || (program && run)) throw new Error('PROGRAM_LOCATION_REQUIRED')
+    return ok(workflowStatus((program ?? run)!))
+  }),
+  ...Object.fromEntries(
+    [
+      ['program-start', programStart],
+      ['program-next', programNext],
+      ['program-record', programRecord],
+      ['program-stop', (p: string, i: Record<string, unknown>) => programPause(p, i, true)],
+      ['program-resume', (p: string, i: Record<string, unknown>) => programPause(p, i, false)],
+      ['program-lock-recover', programRecoverLock]
+    ].map(([name, operation]) => [
+      name,
+      mutation('PROGRAM_OPERATION_FAILED', ({ need, value }) => {
+        const [payload] = need('PROGRAM_PAYLOAD_REQUIRED', '--payload-file')
+        const program = value('--program'),
+          run = value('--run')
+        if (
+          (!program && !run) ||
+          (program && run) ||
+          (run &&
+            !['program-stop', 'program-resume', 'program-lock-recover'].includes(String(name)))
+        )
+          throw new Error('PROGRAM_LOCATION_REQUIRED')
+        const input: unknown = JSON.parse(readFileSync(payload!, 'utf8'))
+        if (!input || typeof input !== 'object' || Array.isArray(input))
+          throw new Error('PROGRAM_PAYLOAD_INVALID')
+        return ok(
+          (operation as (p: string, i: Record<string, unknown>) => object)(
+            (program ?? run)!,
+            input as Record<string, unknown>
+          )
+        )
+      })
+    ])
+  ),
   'test-run': mutation('TEST_RUN_FAILED', ({ value }) => {
     const sdd = value('--sdd'),
       agent = value('--agent'),

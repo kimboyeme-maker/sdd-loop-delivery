@@ -43,6 +43,12 @@
     "turn_steer": { "available": false, "reason": "SendMessage queues for the next tool round only." },
     "turn_interrupt": { "available": false, "reason": "No structured turn interrupt." },
     "usage_read": { "available": false, "reason": "No usage method exposed to the model." },
-    "user_goal_control": { "available": false, "reason": "No Goal command." }
+    "user_goal_control": { "available": false, "reason": "No Goal command." },
+    "task_create": { "available": false, "reason": "Agent subagents run inside this session and cannot be relied on to host a four-role delivery in their own worktree. The user starts a separate session in a new worktree with the CREATE_TASK prompt and reports its name and paths." },
+    "task_message": { "available": true, "kind": "model-tool", "call": "SendMessage", "params": ["to", "message"] },
+    "task_wait": { "available": true, "kind": "model-tool", "call": "SendMessage", "params": ["to", "notify_when_idle"], "notes": "One-shot idle notice from a session on this machine; re-subscribe after each notice." },
+    "task_list": { "available": true, "kind": "model-tool", "call": "ListAgents", "params": [] },
+    "wake_schedule": { "available": true, "kind": "model-tool", "call": "CronCreate", "params": ["cron", "prompt", "recurring"], "notes": "Session-only, fires only while idle, recurring jobs expire after 7 days." },
+    "project_discover": { "available": false, "reason": "The session working directory is the project; confirm it with git rev-parse --show-toplevel." }
   }
 }

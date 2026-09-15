@@ -9,6 +9,7 @@ import { contractContext } from '../helpers/contract-context'
 import { contextRouting } from '../helpers/context-routing'
 import { projectContextSources } from '../helpers/context-projection'
 import { markdownSections } from '../utils/markdown-sections'
+import { programExecutionView } from './program-execution'
 
 /** Shared projection for viewing, reading and receipt validation. */
 export function contextView(
@@ -53,6 +54,7 @@ export function contextView(
     ...routing,
     ...projectContextSources(routing.sources, routing.map, role, contract, selected),
     packet_id: packetId ?? null,
+    program_context: snapshot ? programExecutionView(sdd, snapshot.state, packetId) : null,
     ...(selected ? { contract: selected } : {}),
     protocol: 'context-view/v2',
     source: { bytes: source.byteLength, sha256: createHash('sha256').update(source).digest('hex') },

@@ -35,6 +35,12 @@ Models are resolved from the role tier through the active host profile (`codex`,
 | `turn_interrupt` | true | `turn/interrupt` | threadId, turnId |
 | `usage_read` | true | `account/usage/read` |  |
 | `user_goal_control` | true | `/goal pause\|resume\|clear` |  |
+| `task_create` | true | `create_thread` | project_id, host_id, base_commit, prompt, worktree |
+| `task_message` | true | `send_message_to_thread` | thread_id, message |
+| `task_wait` | true | `wait_threads` | thread_ids, timeout_ms |
+| `task_list` | false | No verified thread-listing tool in the bundled profile. Reconcile an uncertain creation by its intent through the host UI or the user. |  |
+| `wake_schedule` | true | `automation_update` | prompt, interval |
+| `project_discover` | true | `list_projects` |  |
 
 ## Operator profiles
 

@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { coordinatorHistory } from '../domain/policies/coordinator-history'
+import { coordinatorProof } from '../resource/coordinator-evidence'
 import { rolePublicKey } from '../resource/role-signature'
 import { decodeState, sidecarPaths } from '../resource/state'
 import { commitSidecar } from '../resource/store/sidecar-transaction'
@@ -131,11 +132,18 @@ export function commitAuthorityChange(
   security: Parameters<typeof commitSidecar>[3],
   allowEventTailAhead = false
 ): void {
-  const signature = createHmac('sha256', signingToken).update(JSON.stringify(body)).digest('hex')
+  // The installed epoch key verifies the authority event itself, so a reader without the
+  // credential can authenticate the whole epoch from its first event.
+  const keys = nextState.coordinator_event_keys as Item | undefined
+  const value =
+    keys?.[String(body.authority_epoch)] === rolePublicKey(signingToken)
+      ? { ...body, coordinator_proof: coordinatorProof(body, signingToken) }
+      : body
+  const signature = createHmac('sha256', signingToken).update(JSON.stringify(value)).digest('hex')
   commitSidecar(
     snapshot.paths,
     Buffer.from(JSON.stringify(nextState)),
-    Buffer.from(`${JSON.stringify({ ...body, signature })}\n`),
+    Buffer.from(`${JSON.stringify({ ...value, signature })}\n`),
     security,
     {
       state: snapshot.stateBytes,

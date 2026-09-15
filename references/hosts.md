@@ -30,6 +30,12 @@ The loop never names a host's tools in its protocol. Roles use a neutral operati
 | `turn_steer`, `turn_interrupt` | Structured mid-turn control. |
 | `usage_read` | Real token/usage accounting. |
 | `user_goal_control` | User-typed Goal commands; never sent by a role as message text. |
+| `task_create` | Start an independent top-level task in a new worktree (cross-SDD workflow). |
+| `task_message` | Send a message to such a task (the bind CONTINUE, stop requests). |
+| `task_wait` | Wake on task idle or completion instead of polling. |
+| `task_list` | List actual tasks to reconcile an uncertain creation by its intent. |
+| `wake_schedule` | Recurring wake for the scheduling task while it is otherwise idle. |
+| `project_discover` | Resolve the saved project or repository reference `task_create` needs. |
 
 Rules:
 
@@ -38,6 +44,7 @@ Rules:
 - A receipt records the actual call name and returned identifiers. A self-described model, a PID or process liveness is never a receipt.
 - Without `goal_create`, dispatch Operators with `--operator-goal unavailable` and a reason; `bounded` Operators therefore stay unavailable on that host.
 - Without `goal_get`/`goal_set`, Goal pause/resume is unavailable; use `direction_update`, `interrupt_turn` or `idle_continuation` and say so.
+- Program operations (`task_*`, `wake_schedule`, `project_discover`) have fallbacks in [program workflow](program-workflow.md): without `task_create` the user starts each child task, without `wake_schedule` the run is `attended`. The run records the profile id, so a workflow cannot switch hosts midway.
 - Without `spawn`, the host cannot run the four-role topology; report `IN_THREAD_AGENT_UNAVAILABLE` instead of simulating roles in one context.
 
 ### Codex capability migration

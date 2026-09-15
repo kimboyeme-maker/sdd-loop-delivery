@@ -30,7 +30,7 @@ Do not re-read or rely on anything else (role transcripts, full diffs, command o
 
 **Budgets are Coordinator inputs, not afterthoughts.** The brief carries attempts, rounds, round test seconds and the credit ledger. Credit units are relative effort estimates: in the default `observe` mode `budgets.credit.over_budget` is a planning signal, not a stop. Only an `enforce` ledger emits `REQUEST_CREDIT_EXTENSION`; then bring the user one decision with spend so far, what remains, and the smallest amount that reaches the next verifiable milestone (`user-control --action extend-credit --credit-amount N`).
 
-**One SDD per Coordinator.** In a program split each SDD has its own Coordinator, worktree and brief. A Coordinator never loads sibling SDD contexts; cross-SDD coordination happens through the frozen foundation interface and the Supervisor's `program-status`.
+**One SDD per Coordinator.** In a program split each SDD has its own Coordinator, worktree and brief. A Coordinator never loads sibling SDD contexts; cross-SDD coordination happens through the frozen foundation interface and the program scheduler's `workflow-status`.
 
 **Hand over instead of degrading.** If the Coordinator repeatedly misreads state, loses track of recorded decisions, or its context has grown past usefulness despite this discipline, prefer a fresh Coordinator through the authorized takeover path. The brief plus the signed history is the complete handoff; no transcript is transferred.
 

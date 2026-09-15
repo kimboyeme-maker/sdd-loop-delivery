@@ -94,6 +94,23 @@ test('native help and option validation cover every command without loading hist
   expect(commandFlags('init')).not.toContain('--phase')
   expect(() => assertCommandOptions('init', ['--max-rounds', '-1'])).not.toThrow()
   expect(() => assertCommandOptions('status', ['--compact', '--sdd', 'task.md'])).not.toThrow()
+  // A grouped entry point keeps each kind's own options: merging never widens what one accepts.
+  expect(() =>
+    assertCommandOptions('status', ['--view', 'runtime', '--sdd', 'task.md'])
+  ).not.toThrow()
+  expect(() => assertCommandOptions('status', ['--view', 'runtime', '--compact'])).toThrow(
+    'CLI_OPTION_UNKNOWN:--compact'
+  )
+  expect(() =>
+    assertCommandOptions('recover', ['--kind', 'lock', '--sdd', 't', '--owner-stopped', 'yes'])
+  ).not.toThrow()
+  expect(() =>
+    assertCommandOptions('recover', ['--kind', 'lock', '--sdd', 't', '--reason', 'x'])
+  ).toThrow('CLI_OPTION_UNKNOWN:--reason')
+  expect(() => assertCommandOptions('recover', ['--sdd', 't'])).toThrow('CLI_OPTION_KIND_INVALID')
+  expect(() => assertCommandOptions('recover', ['--kind', 'reset', '--sdd', 't'])).toThrow(
+    'CLI_OPTION_KIND_INVALID'
+  )
   for (const args of [
     ['--phase', 'IMPLEMENT'],
     ['--agent-id', 'operator'],

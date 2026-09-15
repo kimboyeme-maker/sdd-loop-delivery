@@ -9,10 +9,13 @@ const target = join(root, 'references', 'error-codes.md')
 /** Every literal error code thrown by the controller, with the files that throw it (used by checks). */
 export function collectErrorCodes(): Map<string, Set<string>> {
   const codes = new Map<string, Set<string>>()
-  const pattern = /new Error\(\s*[`'"]([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)/g
+  // Codes are thrown directly or through a local `fail(code, …)` helper; both spellings count.
+  const pattern = /(?:new Error|\bfail)\(\s*[`'"]([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)/g
   for (const path of new Bun.Glob('scripts/**/*.ts').scanSync({ cwd: root })) {
     if (path.includes('/check-') || path.endsWith('render-error-catalog.ts')) continue
-    for (const match of readFileSync(join(root, path), 'utf8').matchAll(pattern))
+    const source = readFileSync(join(root, path), 'utf8')
+    const matches = [...source.matchAll(pattern)]
+    for (const match of matches)
       codes.set(match[1]!, (codes.get(match[1]!) ?? new Set()).add(path.replace(/^scripts\//, '')))
   }
   return codes

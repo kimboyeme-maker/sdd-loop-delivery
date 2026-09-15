@@ -147,8 +147,8 @@ test('unknown options fail closed instead of being silently ignored', () => {
 })
 
 test('command registry lists each operation once with its mutation class', () => {
-  expect(COMMANDS).toHaveLength(47)
-  expect(new Set(COMMANDS.map(({ name }) => name)).size).toBe(47)
+  expect(COMMANDS).toHaveLength(49)
+  expect(new Set(COMMANDS.map(({ name }) => name)).size).toBe(49)
   expect(COMMANDS.find(({ name }) => name === 'dispatch')?.mutation).toBe(true)
   expect(COMMANDS.find(({ name }) => name === 'status')?.mutation).toBe(false)
 })
@@ -161,7 +161,7 @@ test('command coverage check pairs every registered command with its branch', ()
   expect(result.exitCode).toBe(0)
   expect(JSON.parse(result.stdout.toString())).toEqual({
     protocol: 'command-coverage/v1',
-    registered: 47
+    registered: 49
   })
   expect(result.stderr.toString()).toBe('')
 })
@@ -2082,7 +2082,9 @@ test('resume-view and audit expose continuity facts without writing', () => {
     const result = Bun.spawnSync([
       process.execPath,
       `${import.meta.dir}/../scripts/main.ts`,
-      'resume-view',
+      'status',
+      '--view',
+      'resume',
       '--sdd',
       sdd
     ])
@@ -2117,7 +2119,9 @@ test('runtime-view reports no lease without inferring host identity', () => {
     const result = Bun.spawnSync([
       process.execPath,
       `${import.meta.dir}/../scripts/main.ts`,
-      'runtime-view',
+      'status',
+      '--view',
+      'runtime',
       '--sdd',
       sdd
     ])

@@ -1,7 +1,7 @@
 {
   "configuration": [],
   "capabilities": [],
-  "status": ["--compact", "--sdd"],
+  "status": ["--compact", "--sdd", "--view"],
   "context-view": ["--sdd", "--agent", "--packet", "--fresh"],
   "context-read": [
     "--limit",
@@ -16,8 +16,6 @@
     "--prepared-id"
   ],
   "audit": ["--sdd"],
-  "resume-view": ["--sdd"],
-  "runtime-view": ["--sdd"],
   "document-check": ["--design-policy", "--document-policy", "--sdd"],
   "validate": ["--design-policy", "--document-policy", "--sdd"],
   "validate-draft": [
@@ -67,14 +65,6 @@
     "--role",
     "--sdd"
   ],
-  "transaction-recover": [
-    "--all-previous-writers-stopped",
-    "--expected-revision",
-    "--expected-state",
-    "--role",
-    "--sdd"
-  ],
-  "lock-recover": ["--expected-lock-hash", "--owner-stopped", "--sdd", "--user-authorized"],
   "record": [
     "--expected-revision",
     "--expected-state",
@@ -206,16 +196,6 @@
     "--observation-json",
     "--sdd"
   ],
-  "coordinator-takeover": [
-    "--runtime-receipt-file",
-    "--all-previous-writers-stopped",
-    "--coordinator-agent-id",
-    "--expected-revision",
-    "--expected-state",
-    "--reason",
-    "--sdd",
-    "--user-authorized"
-  ],
   "agent-start-receipt": [
     "--agent",
     "--agent-id",
@@ -240,17 +220,15 @@
     "--sdd",
     "--type"
   ],
-  "bootstrap-recover": [
-    "--runtime-receipt-file",
-    "--all-previous-writers-stopped",
-    "--coordinator-agent-id",
-    "--expected-revision",
-    "--expected-state",
-    "--reason",
-    "--sdd"
-  ],
   "coordinator-brief": ["--event-id", "--sdd"],
-  "program-status": ["--program"],
+  "program-check": ["--program"],
+  "workflow-status": ["--program", "--run"],
+  "program-start": ["--program", "--payload-file"],
+  "program-next": ["--program", "--payload-file"],
+  "program-record": ["--program", "--payload-file"],
+  "program-stop": ["--program", "--run", "--payload-file"],
+  "program-resume": ["--program", "--run", "--payload-file"],
+  "program-lock-recover": ["--program", "--run", "--payload-file"],
   "retrospective": ["--sdd", "--write"],
   "evolution-digest": ["--retrospective-files"],
   "runtime-plan": ["--sdd"],
@@ -267,5 +245,19 @@
     "--preset",
     "--sdd"
   ],
-  "process-reclaim": ["--sdd", "--agent-id"]
+  "process-reclaim": ["--sdd", "--agent-id"],
+  "recover": [
+    "--all-previous-writers-stopped",
+    "--coordinator-agent-id",
+    "--expected-lock-hash",
+    "--expected-revision",
+    "--expected-state",
+    "--kind",
+    "--owner-stopped",
+    "--reason",
+    "--role",
+    "--runtime-receipt-file",
+    "--sdd",
+    "--user-authorized"
+  ]
 }

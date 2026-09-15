@@ -1,5 +1,5 @@
 import { COMMANDS } from './commands/registry'
-import { COMMAND_OPTIONS } from './commands/options'
+import { COMMAND_OPTIONS, KIND_OPTIONS } from './commands/options'
 
 /** Check native inventory consistency, not implementation or semantic parity with another engine. */
 const names = COMMANDS.map((command) => command.name).sort()
@@ -15,6 +15,13 @@ for (const [command, flags] of Object.entries(COMMAND_OPTIONS)) {
     flags.some((flag) => !/^--[a-z][a-z0-9-]*$/.test(flag))
   )
     throw new Error(`COMMAND_OPTIONS_INVALID:${command}`)
+}
+// A grouped command lists exactly its selector plus the union of its kinds' options.
+for (const [command, selection] of Object.entries(KIND_OPTIONS)) {
+  const union = new Set([selection.selector, ...Object.values(selection.kinds).flat()])
+  const listed = COMMAND_OPTIONS[command] ?? []
+  if (listed.length !== union.size || listed.some((flag) => !union.has(flag)))
+    throw new Error(`COMMAND_KIND_OPTIONS_MISMATCH:${command}`)
 }
 console.log(
   JSON.stringify({

@@ -33,6 +33,12 @@
     "turn_steer": { "available": false, "reason": "Unknown host." },
     "turn_interrupt": { "available": false, "reason": "Unknown host." },
     "usage_read": { "available": false, "reason": "Unknown host." },
-    "user_goal_control": { "available": false, "reason": "Unknown host." }
+    "user_goal_control": { "available": false, "reason": "Unknown host." },
+    "task_create": { "available": false, "reason": "Unknown host." },
+    "task_message": { "available": false, "reason": "Unknown host." },
+    "task_wait": { "available": false, "reason": "Unknown host." },
+    "task_list": { "available": false, "reason": "Unknown host." },
+    "wake_schedule": { "available": false, "reason": "Unknown host." },
+    "project_discover": { "available": false, "reason": "Unknown host." }
   }
 }
