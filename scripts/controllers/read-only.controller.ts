@@ -14,7 +14,18 @@ import { createHash } from 'node:crypto'
 import { readSnapshot } from '../resource/state'
 import { operatorGoalBinding } from '../helpers/operator-goal'
 import { COMMANDS } from '../commands/registry'
-import { MINIMUM_BUN, PROTOCOL, RUNTIME, TYPESCRIPT } from '../config/constants'
+import {
+  ACCEPTANCE_TIMEOUT_MAX_SECONDS,
+  MAX_BATCH_MINUTES,
+  MAX_NEW_TEST_FILES_PER_BATCH,
+  MINIMUM_BUN,
+  PROTOCOL,
+  RUNTIME,
+  TEST_BUDGET_MAX_MINUTES,
+  TEST_BUDGET_MAX_SHARE_DIVISOR,
+  TEST_RETRY_BUDGET_MULTIPLIER,
+  TYPESCRIPT
+} from '../config/constants'
 import { roleTable } from '../config/roles'
 import { hostCapabilities } from '../config/host'
 import { TEST_PRESETS } from '../config/test-presets'
@@ -38,6 +49,15 @@ export function configuration(): object {
       id_pattern: SDD_DOCUMENT_ID_PATTERN,
       default_prefixes: SDD_DEFAULT_ID_PREFIXES,
       description_column: 'description'
+    },
+    // Authors read every numeric ceiling from here; the skills never restate them from memory.
+    limits: {
+      max_batch_minutes: MAX_BATCH_MINUTES,
+      test_budget_max_minutes: TEST_BUDGET_MAX_MINUTES,
+      test_budget_max_share_divisor: TEST_BUDGET_MAX_SHARE_DIVISOR,
+      max_new_test_files_per_batch: MAX_NEW_TEST_FILES_PER_BATCH,
+      acceptance_timeout_max_seconds: ACCEPTANCE_TIMEOUT_MAX_SECONDS,
+      test_retry_budget_multiplier: TEST_RETRY_BUDGET_MULTIPLIER
     },
     commands: COMMANDS,
     commandOptions: COMMAND_OPTIONS

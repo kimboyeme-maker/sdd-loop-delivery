@@ -7,6 +7,11 @@ export const TEST_BUDGET_MAX_MINUTES = 15
 export const TEST_BUDGET_MAX_SHARE_DIVISOR = 3
 export const MAX_NEW_TEST_FILES_PER_BATCH = 1
 export const TEST_RETRY_BUDGET_MULTIPLIER = 2
+/**
+ * Largest `estimated_minutes` one delivery-plan batch may declare. A batch is one Operator lease:
+ * beyond this the author must cut the work, not widen the lease.
+ */
+export const MAX_BATCH_MINUTES = 60
 /** Default acceptance timeout ceiling; a contract may justify a larger finite timeout. */
 export const ACCEPTANCE_TIMEOUT_MAX_SECONDS = 900
 /**

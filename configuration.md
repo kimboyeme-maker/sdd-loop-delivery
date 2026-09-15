@@ -24,7 +24,7 @@ Models are resolved from the role tier through the active host profile (`codex`,
 | `interrupt_turn` | true | `interrupt_agent` | target |
 | `close` | false | No close tool in the bundled collaboration surface. Interrupt preserves the runtime; archive/unsubscribe do not prove released capacity. Enable only through a verified custom host bridge. |  |
 | `observe` | true | `list_agents` | path_prefix |
-| `resume_closed` | false | No closed-runtime resume tool in the bundled collaboration surface. Use followup_task for an existing idle runtime; thread/resume requires a verified host bridge. |  |
+| `resume_closed` | true | `thread/resume` | threadId |
 | `goal_create` | true | `create_goal` | objective |
 | `goal_read` | true | `get_goal` |  |
 | `goal_complete` | true | `update_goal` | status |
@@ -37,8 +37,8 @@ Models are resolved from the role tier through the active host profile (`codex`,
 | `user_goal_control` | true | `/goal pause\|resume\|clear` |  |
 | `task_create` | true | `create_thread` | project_id, host_id, base_commit, prompt, worktree |
 | `task_message` | true | `send_message_to_thread` | thread_id, message |
-| `task_wait` | true | `wait_threads` | thread_ids, timeout_ms |
-| `task_list` | false | No verified thread-listing tool in the bundled profile. Reconcile an uncertain creation by its intent through the host UI or the user. |  |
+| `task_wait` | true | `turn/completed` | threadId, turnId, status |
+| `task_list` | true | `thread/list` | cursor, limit, sortKey, sortDirection, cwd, searchTerm, archived, isPinned |
 | `wake_schedule` | true | `automation_update` | prompt, interval |
 | `project_discover` | true | `list_projects` |  |
 
@@ -62,6 +62,7 @@ Test time, share, file-count and acceptance-timeout constants are defaults. Larg
 | `COORDINATOR_BRIEF_RECENT_EVENTS` | `8` |
 | `DEFAULT_CREDIT_BUDGET_PER_ROUND` | `60` |
 | `ESCALATED_OPERATOR_MIN_FAILURES` | `2` |
+| `MAX_BATCH_MINUTES` | `60` |
 | `MAX_NEW_TEST_FILES_PER_BATCH` | `1` |
 | `MINIMUM_BUN` | `1.4.2` |
 | `PROTOCOL` | `sdd-loop-delivery/v1` |

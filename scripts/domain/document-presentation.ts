@@ -200,7 +200,9 @@ export function documentPresentation(
       acceptance_ids.some((ref) => !acs.has(ref))
     )
       throw Error('SDD_PRESENTATION_SCOPE_EXPANSION:' + key)
-    if (kind === 'batch' && batch_ids.length) throw Error('SDD_PRESENTATION_SECOND_GRAPH_FORBIDDEN')
+    // Batch order lives in delivery_plan.depends_on; a batch row repeating it is a second graph.
+    if (kind === 'batch' && batch_ids.length)
+      throw Error('SDD_PRESENTATION_SECOND_GRAPH_FORBIDDEN:' + key)
     derived.push({
       id: key,
       kind,

@@ -1,4 +1,5 @@
 import { assertTestBudget } from './policies/test-budget'
+import { MAX_BATCH_MINUTES } from '../config/constants'
 
 type Item = Record<string, unknown>
 const object = (value: unknown): Item | undefined =>
@@ -9,9 +10,6 @@ const ids = (value: unknown, allowEmpty = false): value is string[] =>
   (allowEmpty || value.length > 0) &&
   value.every(text) &&
   new Set(value).size === value.length
-
-/** One batch must fit a single Operator lease hard deadline (minutes). */
-export const MAX_BATCH_MINUTES = 60
 
 /** Scheduling projection returned to the author; it is advisory, never runtime progress. */
 export type DeliveryPlanSummary = Readonly<{

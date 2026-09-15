@@ -7,6 +7,8 @@ LOOP="bun ~/.codex/skills/sdd-loop-delivery/scripts/main.ts"
 SDD=/absolute/path/to/task.sdd.md
 ```
 
+Run the controller on Bun `1.4.2` or newer. A repository may pin an older Bun for its own product (a workspace `mise.toml`, for example); every command then exits with `RUNTIME_BUN_TOO_OLD` naming both versions. Run the controller with your own Bun instead of the repository's pinned one.
+
 Mutating commands authenticate with the Coordinator credential. Export it privately (`SDD_LOOP_COORDINATOR_TOKEN`, or the `capabilityFile` the controller minted) and never paste it into chats, receipts or tickets. Every mutation also needs the current `--expected-state` and `--expected-revision`; read them from `status` right before running it.
 
 ## First look

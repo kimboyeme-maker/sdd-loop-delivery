@@ -3,7 +3,9 @@
   "id": "codex",
   "display_name": "OpenAI Codex (app-server, multi-agent v2)",
   "sources": [
+    "https://learn.chatgpt.com/docs/app-server.md",
     "https://developers.openai.com/codex/app-server",
+    "https://github.com/openai/codex/issues/26861",
     "https://developers.openai.com/codex/multi-agent",
     "https://developers.openai.com/codex/skills"
   ],
@@ -37,7 +39,7 @@
     "interrupt_turn": { "available": true, "kind": "model-tool", "call": "interrupt_agent", "params": ["target"], "closes_agent": false },
     "close": { "available": false, "reason": "No close tool in the bundled collaboration surface. Interrupt preserves the runtime; archive/unsubscribe do not prove released capacity. Enable only through a verified custom host bridge." },
     "observe": { "available": true, "kind": "model-tool", "call": "list_agents", "params": ["path_prefix"] },
-    "resume_closed": { "available": false, "reason": "No closed-runtime resume tool in the bundled collaboration surface. Use followup_task for an existing idle runtime; thread/resume requires a verified host bridge." },
+    "resume_closed": { "available": true, "kind": "host-method", "call": "thread/resume", "params": ["threadId"], "notes": "Published app-server method: resumes a thread by id, with optional configuration overrides. Prefer followup_task for a runtime that is merely idle; thread/resume is for one whose runtime is gone." },
     "goal_create": { "available": true, "kind": "model-tool", "call": "create_goal", "params": ["objective"], "fails_when_goal_exists": true },
     "goal_read": { "available": true, "kind": "model-tool", "call": "get_goal", "params": [] },
     "goal_complete": { "available": true, "kind": "model-tool", "call": "update_goal", "params": ["status"] },
@@ -48,11 +50,11 @@
     "turn_interrupt": { "available": true, "kind": "host-method", "call": "turn/interrupt", "params": ["threadId", "turnId"] },
     "usage_read": { "available": true, "kind": "host-method", "call": "account/usage/read", "params": [] },
     "user_goal_control": { "available": true, "kind": "user-command", "call": "/goal pause|resume|clear", "params": [] },
-    "task_create": { "available": true, "kind": "model-tool", "call": "create_thread", "params": ["project_id", "host_id", "base_commit", "prompt", "worktree"], "notes": "Desktop thread tools; confirm the live schema. Bind the final thread id, not clientThreadId." },
+    "task_create": { "available": true, "kind": "model-tool", "call": "create_thread", "params": ["project_id", "host_id", "base_commit", "prompt", "worktree"], "protocol_equivalent": { "call": "thread/start", "params": ["model", "cwd", "approvalPolicy", "sandbox", "personality", "serviceName"], "note": "The published method starts a thread in an existing cwd and creates no worktree, so it is not a drop-in replacement." }, "notes": "Desktop thread tool whose parameters are not in the published protocol; confirm the live schema. A Codex-managed worktree creation can return only pendingWorktreeId with no addressable thread id (openai/codex#26861): never invent one, put everything the child needs into the creation prompt, and bind the child afterwards through task_list." },
     "task_message": { "available": true, "kind": "model-tool", "call": "send_message_to_thread", "params": ["thread_id", "message"] },
-    "task_wait": { "available": true, "kind": "model-tool", "call": "wait_threads", "params": ["thread_ids", "timeout_ms"] },
-    "task_list": { "available": false, "reason": "No verified thread-listing tool in the bundled profile. Reconcile an uncertain creation by its intent through the host UI or the user." },
-    "wake_schedule": { "available": true, "kind": "model-tool", "call": "automation_update", "params": ["prompt", "interval"], "notes": "Same-thread heartbeat; record the returned automation id." },
+    "task_wait": { "available": true, "kind": "host-event", "call": "turn/completed", "params": ["threadId", "turnId", "status"], "notes": "Completion arrives as a notification whose status is completed, interrupted or failed; the published protocol has no wait method, and the desktop wait_threads tool is unverified against it. Treat a missing notification as unknown, never as failure." },
+    "task_list": { "available": true, "kind": "host-method", "call": "thread/list", "params": ["cursor", "limit", "sortKey", "sortDirection", "cwd", "searchTerm", "archived", "isPinned"], "notes": "Published app-server method. It is also how a child created without an addressable thread id is recovered: filter by cwd, then confirm identity by the creation prompt." },
+    "wake_schedule": { "available": true, "kind": "model-tool", "call": "automation_update", "params": ["prompt", "interval"], "verified_against": "none", "notes": "Same-thread heartbeat; record the returned automation id. The published protocol documents no scheduling or automation method, so probe the tool before a run depends on it and fall back to USER_CREATES_TASK when it is absent." },
     "project_discover": { "available": true, "kind": "model-tool", "call": "list_projects", "params": [] }
   }
 }
