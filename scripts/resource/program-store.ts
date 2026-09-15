@@ -122,6 +122,8 @@ export function withProgramLock<T>(path: string, action: () => T): T {
 }
 
 export function readProgramRun(path: string): ProgramRun {
+  // A program that was never started is a distinct, recoverable fact; do not leak the raw read error.
+  if (!existsSync(path)) throw new Error('PROGRAM_RUN_NOT_STARTED: run program-start')
   const v = JSON.parse(readFileSync(path, 'utf8')) as ProgramRun | null
   if (
     !v ||

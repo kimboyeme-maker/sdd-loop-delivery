@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from '
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { readProgram } from '../scripts/services/program-contract'
+import { readProgramRun } from '../scripts/resource/program-store'
 import {
   programNext,
   programRecord,
@@ -257,3 +258,8 @@ test('start rejects an invalid child and check rejects an estimate that cannot h
     )
     expect(() => readProgram(path)).toThrow('PROGRAM_ESTIMATE_DIVERGED')
   }))
+
+test('status on a program that was never started names the missing run, not a read error', () => {
+  const missing = join(tmpdir(), `program-never-started-${Date.now()}.workflow.json`)
+  expect(() => readProgramRun(missing)).toThrow('PROGRAM_RUN_NOT_STARTED: run program-start')
+})
