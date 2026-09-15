@@ -9,7 +9,7 @@
     "https://developers.openai.com/codex/multi-agent",
     "https://developers.openai.com/codex/skills"
   ],
-  "skill_roots": ["~/.agents/skills", "~/.codex/skills"],
+  "skill_roots": ["~/.codex/skills"],
   "tiers": {
     "frontier": { "spawn_model": "gpt-6-astra", "accepted_models": ["gpt-6-astra"], "reasoning_effort": "medium" },
     "standard": { "spawn_model": "gpt-5.6-terra", "accepted_models": ["gpt-5.6-terra"], "reasoning_effort": "medium" },

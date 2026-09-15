@@ -3,7 +3,7 @@
   "id": "claude-code",
   "display_name": "Anthropic Claude Code (Agent tool, SendMessage, ListAgents, TaskStop)",
   "sources": ["https://docs.claude.com/en/docs/claude-code/sub-agents", "https://code.claude.com/docs/en/agent-sdk/subagents", "https://platform.claude.com/docs/en/agent-sdk/sessions"],
-  "skill_roots": ["~/.claude/skills", "~/.agents/skills"],
+  "skill_roots": ["~/.claude/skills", "~/.codex/skills"],
   "tiers": {
     "frontier": { "spawn_model": "opus", "accepted_models": ["opus", "claude-opus-5"], "reasoning_effort": null },
     "standard": { "spawn_model": "sonnet", "accepted_models": ["sonnet", "claude-sonnet-5"], "reasoning_effort": null },

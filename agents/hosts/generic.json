@@ -3,7 +3,7 @@
   "id": "generic",
   "display_name": "Generic host (single agent or unknown harness)",
   "sources": [],
-  "skill_roots": ["~/.agents/skills"],
+  "skill_roots": ["~/.codex/skills"],
   "tiers": {
     "frontier": { "spawn_model": null, "accepted_models": [], "reasoning_effort": null },
     "standard": { "spawn_model": null, "accepted_models": [], "reasoning_effort": null },
