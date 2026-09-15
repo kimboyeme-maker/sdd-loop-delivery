@@ -1,0 +1,4 @@
+interface:
+  display_name: "SDD Loop Delivery"
+  short_description: "Bun-based bounded SDD delivery"
+  default_prompt: "Use $sdd-loop-delivery to continue an admitted SDD with Coordinator-led implementation and independent verification."

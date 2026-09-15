@@ -1,0 +1,92 @@
+{
+  "protocol": "sdd-loop-delivery/roles-v2",
+  "roles": {
+    "supervisor": {
+      "description": "Owns host orchestration and progress supervision; does not sign product evidence.",
+      "runtime_tier": null,
+      "context": "inherited",
+      "events": []
+    },
+    "coordinator": {
+      "description": "Owns admission, dispatch, decisions and controller recovery.",
+      "runtime_tier": "frontier",
+      "context": "isolated",
+      "events": [
+        "challenge_resolution",
+        "context_policy",
+        "contract_admission",
+        "contract_amendment",
+        "convergence_review",
+        "coordinator_dependency_decision",
+        "coordinator_identity",
+        "design_resolution",
+        "dispatch",
+        "execution_substrate_receipt",
+        "finding_decision",
+        "finding_status",
+        "operator_reconcile",
+        "pipeline_incident",
+        "pipeline_repair",
+        "preparation_grant",
+        "preparation_revoked",
+        "project_context",
+        "readback_decision",
+        "recovery",
+        "requirement_status",
+        "round_close",
+        "runtime_record",
+        "state_transition",
+        "terminal_blocker",
+        "timeout_decision",
+        "user_decision"
+      ]
+    },
+    "operator": {
+      "description": "Implements admitted scope and directly signs implementation and self-check evidence.",
+      "runtime_tier": "standard",
+      "context": "isolated",
+      "default_profile": "standard",
+      "profiles": {
+        "standard": {
+          "runtime_tier": "standard",
+          "description": "Default implementation profile for work requiring code judgment, discovery, or nontrivial coordination."
+        },
+        "bounded": {
+          "runtime_tier": "efficient",
+          "description": "Cost-sensitive profile for a closed mechanical route with exact writes and deterministic checks."
+        },
+        "escalated": {
+          "runtime_tier": "frontier",
+          "description": "Fresh implementer on the strongest tier after two consecutive Architect rejections or stagnant attempts on the same admission; never a default."
+        }
+      },
+      "events": [
+        "agent_started",
+        "capability_probe",
+        "checkpoint",
+        "context_refresh",
+        "contract_readback",
+        "dependency_operation_proposal",
+        "implementation",
+        "implementation_escalation",
+        "plan_challenge",
+        "self_check"
+      ]
+    },
+    "architect": {
+      "description": "Independently verifies candidates or contributes explicitly scoped design advice.",
+      "runtime_tier": "review",
+      "context": "isolated",
+      "events": [
+        "agent_started",
+        "capability_probe",
+        "checkpoint",
+        "context_ready",
+        "dependency_safety_review",
+        "design_proposal",
+        "finding",
+        "verification"
+      ]
+    }
+  }
+}

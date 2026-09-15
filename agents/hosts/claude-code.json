@@ -1,0 +1,48 @@
+{
+  "protocol": "host-profile/v1",
+  "id": "claude-code",
+  "display_name": "Anthropic Claude Code (Agent tool, SendMessage, ListAgents, TaskStop)",
+  "sources": ["https://docs.claude.com/en/docs/claude-code/sub-agents"],
+  "skill_roots": ["~/.claude/skills", "~/.agents/skills"],
+  "tiers": {
+    "frontier": { "spawn_model": "opus", "accepted_models": ["opus", "claude-opus-5"], "reasoning_effort": null },
+    "standard": { "spawn_model": "sonnet", "accepted_models": ["sonnet", "claude-sonnet-5"], "reasoning_effort": null },
+    "efficient": { "spawn_model": "haiku", "accepted_models": ["haiku", "claude-haiku-4-5-20251001"], "reasoning_effort": null },
+    "review": { "spawn_model": "sonnet", "accepted_models": ["sonnet", "claude-sonnet-5"], "reasoning_effort": null }
+  },
+  "context": {
+    "isolated": {
+      "spawn_args": {},
+      "receipt_values": ["fresh", "isolated"],
+      "notes": "Agent-tool subagents start without the parent conversation; pass the full handoff in prompt."
+    },
+    "inherited": { "spawn_args": {}, "receipt_values": ["inherited"] }
+  },
+  "concurrency": { "config_key": null },
+  "operations": {
+    "spawn": {
+      "available": true,
+      "kind": "model-tool",
+      "call": "Agent",
+      "params": ["description", "prompt", "subagent_type", "model", "run_in_background", "isolation"],
+      "arg_map": { "name": "description", "prompt": "prompt", "model": "model", "effort": null }
+    },
+    "direction_update": { "available": true, "kind": "model-tool", "call": "SendMessage", "params": ["to", "message"], "starts_turn": false },
+    "idle_continuation": { "available": true, "kind": "model-tool", "call": "SendMessage", "params": ["to", "message"], "starts_turn": true },
+    "wait": { "available": true, "kind": "host-event", "call": "task-notification", "params": [] },
+    "interrupt_turn": { "available": false, "reason": "No turn-only interrupt; TaskStop stops the agent task." },
+    "close": { "available": true, "kind": "model-tool", "call": "TaskStop", "params": ["task_id"], "closes_descendants": false },
+    "observe": { "available": true, "kind": "model-tool", "call": "ListAgents", "params": [] },
+    "resume_closed": { "available": true, "kind": "model-tool", "call": "SendMessage", "params": ["to", "message"] },
+    "goal_create": { "available": false, "reason": "No model-side Goal tool." },
+    "goal_read": { "available": false, "reason": "No model-side Goal tool." },
+    "goal_complete": { "available": false, "reason": "No model-side Goal tool." },
+    "goal_get": { "available": false, "reason": "No structured Goal method." },
+    "goal_set": { "available": false, "reason": "No structured Goal method." },
+    "goal_clear": { "available": false, "reason": "No structured Goal method." },
+    "turn_steer": { "available": false, "reason": "SendMessage queues for the next tool round only." },
+    "turn_interrupt": { "available": false, "reason": "No structured turn interrupt." },
+    "usage_read": { "available": false, "reason": "No usage method exposed to the model." },
+    "user_goal_control": { "available": false, "reason": "No Goal command." }
+  }
+}

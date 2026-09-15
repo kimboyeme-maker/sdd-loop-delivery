@@ -1,0 +1,29 @@
+# Coordinator · preflight and admission
+
+Read before initialization and whenever a contract is admitted or readmitted.
+
+## Mandatory preflight
+
+1. Validate the received host spawn receipt: `coordinator-preflight --runtime-receipt-file <public receipt>` (`host-spawn-receipt/v1`: `agent_id`, `runtime`, `model`, optional `reasoning_effort`, `isolation` = one of the active host profile's isolated `receipt_values`). A schema pass proves field shape only, not host provenance.
+2. No sidecars: `validate --sdd <sdd> --document-policy current --design-policy current`, then `init --max-rounds N` and `auth-bootstrap --user-authorized yes --coordinator-agent-id <actual handle> --runtime-receipt-file <receipt>`. The receipt must name that handle and the Coordinator row's model; the controller binds `coordinator_runtime` before any authority exists. Without an explicit token it mints the Coordinator credential file, returns `capabilityFile` and stores the private locator; authenticate later commands with `SDD_LOOP_COORDINATOR_TOKEN_FILE`. Before every dispatch and before `SHIP`, run `audit` with that credential: `authentication.status` must be `AUTHENTIC_CURRENT_EPOCH`, and an `eventLogBinding` error means committed history was altered — stop and escalate, never re-record over it. Existing sidecars: `status`, `audit`, `context-view`; never recreate state.
+3. Resolve repository roots, package ownership, public boundaries, consumers, dependency direction, reusable primitives, non-goals, dirty baseline and declared lineage. For continuation lineage inspect predecessor state/events and the controller-derived obligations before evaluating routes.
+4. Freeze shared ownership, public boundaries, dependency direction and user authority across the contract. Close execution decisions for the current admission and its prerequisites. Collect currently knowable user-owned decisions together; unrelated later implementation details do not delay the current slice.
+5. Inventory custody ownership, secret flow and protection policy. Existing tooling supplies a successful execution check. For tooling this admission creates, set `implementation_timing: IMPLEMENTATION_REQUIRED`, `execution_check: {method, outcome: NOT_RUN}`, and `acceptance_ids` inside this admission; independent final acceptance must verify the resulting custody chain. Omitted timing retains the existing executable-check requirement.
+6. Reconstruct the admitted implementation logic independently ([design convergence](../design-convergence.md#implementation-logic-reconstruction)), including shared paths and prerequisite interfaces.
+
+## Admission
+
+Decision order: evidence → conventional baseline → real options → responsibility → workload/difficulty → causal impact → adversarial falsification → admission. Record `record --type contract_admission --payload-json <json>` in `CONTRACT_DRAFT` or `CONTRACT_AMENDED`.
+
+`ADMIT` requires, validated by the controller:
+
+- `coordinator_runtime` matching the Coordinator tier resolved through the active host profile, with host evidence.
+- Scope (`requirement_ids`, `acceptance_ids`, `modification_packages`), `execution_packets` exactly covering admitted IDs, route options with one selected route, responsibility, workload, difficulty, proven prerequisites and early falsifier result. Prefer observable work and acceptance over generic unknown lists; legacy `unknowns` may be omitted or empty. An unresolved prerequisite of this slice still blocks its implementation.
+- `must_ship_decision_closure.scope: CURRENT_ADMISSION` closes the current requirement IDs plus their transitive prerequisites and decisions, with nonempty `contract_boundary_evidence` for shared ownership, interfaces and authority. Omitted scope retains whole-contract closure. `sdd_convergence_review` covers their Must-Ship acceptance; unmapped/shared logic remains reviewed. `fact_closure`, lineage dispositions, claim coverage, causal verification scope and migration closure retain their existing checks.
+- `artifact_custody`: planned new tooling bound to acceptance, executable existing tooling, or `items: []` with `absence_evidence`.
+- `execution_failure_review` when a product execution failure is pending.
+- `user_decision_resolution` `{request_hash, user_answer, evidence}` when a user decision is pending; an unrelated ADMIT cannot discard the wait.
+
+`USER_DECISION` records scope, `problem_evidence`, `coordinator_runtime` and a complete `authorization_request` whose `authority_basis` matches a true `authority_delta` effect. It keeps the controller nonterminal with `pending_user_decision`; the same request cannot be asked twice. Ordinary reversible technical choices inside scope are Coordinator decisions, never user questions.
+
+Packets are a disposable execution projection. Give each packet its own `modification_packages` when narrower than admission. With a `delivery_plan`, reuse the batch ID and its requirements, packages, budget and dependencies; execution guidance may narrow that authority. Order along plan waves. Size `test_budget` from acceptance; exceeding default thresholds requires `acceptance_basis: {acceptance_ids, reason}` within that packet/batch. After exhaustion, diagnose and readmit a justified budget only for remaining necessary acceptance; never erase spend or repeatedly extend an unchanged failing route. Freeze causal verification scope; unrelated failures do not expand modification authority.

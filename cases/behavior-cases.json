@@ -1,0 +1,406 @@
+{
+  "protocol": "skill-behavior-cases/v1",
+  "suite": "sdd-loop-delivery",
+  "cases": [
+    {
+      "id": "SDDR-GOAL-001",
+      "title": "Goal control requires a callable structured host method",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "trace",
+      "single_changed_fact": "whether Coordinator has a callable Goal method with a verified target-bound receipt",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Pause an Operator whose execution direction is wrong.",
+        "starting_state": "Coordinator knows an app-server PID and can send ordinary messages, but has no thread/goal tool or connectable transport.",
+        "material_action": "Send /goal pause as message text and report the Goal paused.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "PID discovery and prompt text provide no structured Goal mutation receipt.",
+        "completion_oracle": "Coordinator uses interrupt_agent for the active turn, preserves work, and reports Goal pause unavailable."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Pause an Operator whose execution direction is wrong.",
+        "starting_state": "Coordinator has callable turn/interrupt and thread/goal/get/set methods plus exact current thread and turn IDs.",
+        "material_action": "Interrupt the bound turn, set paused, then verify paused through thread/goal/get.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "Structured target-bound calls and postcondition establish the control effect.",
+        "completion_oracle": "No competing writer starts and the verified Goal state is paused."
+      }
+    },
+    {
+      "id": "LSSL-WAIT-001",
+      "title": "Unchanged user wait is stable",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "trace",
+      "single_changed_fact": "whether new evidence changed the pending decision",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Wait for one product decision.",
+        "starting_state": "Controller is WAITING_USER and scheduler injects another continuation without user input.",
+        "material_action": "Repeat the request, consume a failure count, or create a successor.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "No user answer or material evidence changed the decision.",
+        "completion_oracle": "Controller and product state remain unchanged and nonterminal."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Wait for one product decision.",
+        "starting_state": "A new repository fact invalidates one option while the decision is pending.",
+        "material_action": "Present the changed options and evidence once.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "Material new evidence changed the user's decision surface.",
+        "completion_oracle": "The updated request is recorded once without terminalizing the controller."
+      }
+    },
+    {
+      "id": "LSSL-FAILURE-001",
+      "title": "Distinct failures do not accumulate into one blocker",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "trace",
+      "single_changed_fact": "whether the failures share one proven root cause",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Complete the admitted browser acceptance.",
+        "starting_state": "A timeout, assertion mismatch, and synchronization race occurred in separate attempts.",
+        "material_action": "Use total failure count three to create terminal BLOCKED.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "The failures have different root-cause keys and remain individually repairable.",
+        "completion_oracle": "Each failure receives its own review; no count alone creates terminal state."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Complete the admitted browser acceptance.",
+        "starting_state": "Repeated evidence proves the same required runtime cannot execute the bounded oracle and no safe route exists.",
+        "material_action": "Record a terminal blocker with the feasibility evidence.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "A separate terminal-blocker proof establishes no feasible bounded route.",
+        "completion_oracle": "BLOCKED cites the unavailable admitted oracle, not the repetition count."
+      }
+    },
+    {
+      "id": "LSSL-SCOPE-001",
+      "title": "Write authority is checked before mutation",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "repro",
+      "single_changed_fact": "whether the target package is inside admitted modification authority",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Implement the admitted Storage packet.",
+        "starting_state": "Website is verification-only and absent from modification_packages.",
+        "material_action": "Operator attempts a repository write targeting Website.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "Verification reach grants no Website write authority.",
+        "completion_oracle": "pre-action returns nonzero before the write and names the unauthorized package."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Implement the admitted Storage packet.",
+        "starting_state": "Storage is included in modification_packages for the active Operator lease.",
+        "material_action": "Operator attempts a repository write targeting Storage.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "The active admission grants Storage modification authority.",
+        "completion_oracle": "pre-action returns ALLOW without expanding any package boundary."
+      }
+    },
+    {
+      "id": "LSSL-PIPELINE-001",
+      "title": "Pipeline incidents do not become product blockers",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "trace",
+      "single_changed_fact": "whether the failure belongs to task behavior or control transport",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Continue an admitted implementation.",
+        "starting_state": "Lease capability transport fails before a product command runs.",
+        "material_action": "Count the incident as product execution failure and terminalize the product.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "The failure occurred in control transport before product execution.",
+        "completion_oracle": "The incident enters pipeline repair and leaves product counters unchanged."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Continue an admitted implementation.",
+        "starting_state": "The product command runs under a healthy lease and falsifies the admitted behavior oracle.",
+        "material_action": "Record a product execution failure and return to readmission.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "A product execution under valid control authority falsified an admitted oracle.",
+        "completion_oracle": "The product root receives review without changing pipeline counters."
+      }
+    },
+    {
+      "id": "LSSL-MIGRATION-001",
+      "title": "Migration admission closes readers before removal",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "repro",
+      "single_changed_fact": "whether the falsifier and packet DAG cover the declared module-reader universe",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Admit the RPC contract migration.",
+        "starting_state": "The SDD removes a legacy owner, but admission runs only a typing probe and places readers plus removal in one staged packet.",
+        "material_action": "Record ADMIT and dispatch Operator.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "No migration-reader inventory fact or ordered reader-to-removal path supports the route.",
+        "completion_oracle": "Controller rejects admission before any Operator lease."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Admit the RPC contract migration.",
+        "starting_state": "The executed reader inventory matches the SDD, all readers bind to packets, and removal transitively depends on those packets.",
+        "material_action": "Record a staged migration admission.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "Reader closure and packet order are current, complete, and fact-bound.",
+        "completion_oracle": "Controller admits the route without treating final-state atomicity as one implementation packet."
+      }
+    },
+    {
+      "id": "LSSL-DESIGN-001",
+      "title": "Material route repair is solved by Architect and Coordinator",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "trace",
+      "single_changed_fact": "whether the first proposal has a complete evidence-backed adversarial review",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Recover after the admitted migration packet model is disproven.",
+        "starting_state": "The distinct Architect proposal preserves scope and authority, but Coordinator has not checked its claims against evidence or failure modes.",
+        "material_action": "Coordinator marks the first proposal CONVERGED.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "The missing review evidence, not the proposal number, makes convergence unsupported.",
+        "completion_oracle": "Convergence is rejected until real review evidence exists; no fake disagreement is required."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Recover after the admitted migration packet model is disproven.",
+        "starting_state": "The same distinct Architect proposal preserves scope and authority; Coordinator independently checked all dimensions and falsifiers and found no unresolved issue.",
+        "material_action": "Coordinator marks the first proposal CONVERGED.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "The review supports the route without a real failed claim or pending challenge.",
+        "completion_oracle": "Convergence succeeds without manufacturing FAIL, another Architect call, a design change, or a user approval request."
+      }
+    },
+    {
+      "id": "LSSL-CUSTODY-001",
+      "title": "Custody recovery does not consume user authority",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "repro",
+      "single_changed_fact": "whether the next custody action crosses the admitted artifact and effect envelope",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Finish the admitted signed local artifact pair.",
+        "starting_state": "The process-local signer expired after an earlier attempt; exact paths, content contract, local write scope, and no-external-effect boundary are unchanged.",
+        "material_action": "Record USER_DECISION because signer count one was consumed.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "Signer lifetime is operational state and every user-authority delta remains false.",
+        "completion_oracle": "Coordinator rotates the key and completes bounded local custody recovery without another user prompt."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Publish the signed artifact to an external registry.",
+        "starting_state": "Local generation is admitted, but no network publication or third-party mutation was authorized.",
+        "material_action": "Record one USER_DECISION with external_effect true and exact evidence.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "External publication crosses the admitted no-external-effect envelope.",
+        "completion_oracle": "The request identifies the external target and no publication occurs before approval."
+      }
+    },
+    {
+      "id": "LSSL-DEPENDENCY-001",
+      "title": "Architect challenge cannot be rubber-stamped",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "trace",
+      "single_changed_fact": "whether every dependency-safety challenge has evidence closure",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Approve a workspace-resolution mutation.",
+        "starting_state": "Architect identifies an unrecoverable symlink drift challenge and Coordinator writes only a generic approval sentence.",
+        "material_action": "Run pre-action and let Operator execute pnpm link.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "The exact challenge ID has no evidence-backed closure.",
+        "completion_oracle": "Pre-action denies the high-impact dependency operation before mutation."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Approve a workspace-resolution mutation.",
+        "starting_state": "Architect's challenge is closed by an isolated restoration probe bound to the unchanged plan fingerprint.",
+        "material_action": "Coordinator records APPROVE with one-to-one challenge evidence and runs pre-action.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "The challenged recovery claim is independently falsified and the operation envelope is unchanged.",
+        "completion_oracle": "Operator executes once without consuming a product verification attempt."
+      }
+    },
+    {
+      "id": "LSSL-RECOVERY-001",
+      "title": "Recovery revalidates changed evidence only",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "repro",
+      "single_changed_fact": "whether evidence-bound fingerprints changed across takeover",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Resume after Coordinator private-key loss.",
+        "starting_state": "Epoch signatures and SDD, source, environment, and oracle fingerprints are unchanged.",
+        "material_action": "Clear every verified requirement and rerun the full acceptance matrix.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "Public-key-verifiable evidence remains bound to unchanged surfaces.",
+        "completion_oracle": "Takeover preserves that evidence and readmits only current authority."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Resume after dependency-environment damage.",
+        "starting_state": "Workspace-link and resolver fingerprints changed while source inventory did not.",
+        "material_action": "Run one substrate receipt and revalidate only runtime-resolution evidence.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "The fingerprint delta identifies the exact affected evidence surface.",
+        "completion_oracle": "Source inventory remains valid; environment evidence is repaired without a product attempt."
+      }
+    },
+    {
+      "id": "SRD-CANDIDATE-001",
+      "title": "Operator handoff proves candidate integrity",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "repro",
+      "single_changed_fact": "whether the candidate receipt proves the guard and preserves the admitted environment and write scope",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Hand the implementation candidate to Architect.",
+        "starting_state": "Tests are green, but bypassing the target guard stays green or dependency fingerprints drifted.",
+        "material_action": "Record READY_FOR_ARCHITECT using the green test summary alone.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "The candidate lacks guard-sensitive causality or environment integrity.",
+        "completion_oracle": "Controller rejects the handoff before Architect verification and preserves the product attempt for route correction."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Hand the implementation candidate to Architect.",
+        "starting_state": "The focused perturbation flips the linked acceptance, restoration passes, fingerprints are stable, and changed paths stay within authority.",
+        "material_action": "Record READY_FOR_ARCHITECT with the three-part candidate receipt.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "Oracle causality, environment integrity, and modification scope are independently inspectable.",
+        "completion_oracle": "Controller permits Architect verification without treating test greenness as sufficient evidence."
+      }
+    },
+    {
+      "id": "SRD-BASELINE-001",
+      "title": "Frozen identity is not semantic conformance",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "repro",
+      "single_changed_fact": "whether the retained legacy runtime behavior was independently probed",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Admit removal of the legacy wire authority while preserving frozen module hashes.",
+        "starting_state": "New endpoint tests and source ZERO scans pass, but the retained full endpoint was never given the forbidden legacy semantic input.",
+        "material_action": "Treat unchanged hashes and new-path PASS as proof that R10 is already satisfied.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "Identity evidence says nothing about whether the frozen runtime still accepts the old semantic authority.",
+        "completion_oracle": "Admission rejects the missing claim disposition and independent legacy runtime probe before Operator dispatch."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Admit removal of the legacy wire authority while preserving only genuinely conformant baselines.",
+        "starting_state": "An independently constructed legacy input proves the retained endpoint still accepts kind=chunk, and R10 is assigned to a removal packet.",
+        "material_action": "Classify R10 as IMPLEMENTATION_REQUIRED and bind its rejection oracle to the removal packet.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "The current semantic violation is explicit implementation work rather than hidden behind drift hashes.",
+        "completion_oracle": "The route may be admitted only when the packet can change the conflicting surface and Architect later proves legacy rejection."
+      }
+    },
+    {
+      "id": "DELIVERY-LOGIC-001",
+      "title": "Coordinator reconstructs the author logic independently",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "repro",
+      "single_changed_fact": "whether the implementation-critical prerequisite and failure path have current independent closure evidence",
+      "bad": {
+        "task_mode": "admission",
+        "request": "Design and deliver a resumable signed artifact migration while preserving the old consumer until its migration completes.",
+        "material_action": "Admit the authored implementation route",
+        "starting_state": "The author reports PASS, but Coordinator has not traced the cancellation branch or the old consumer entrypoint.",
+        "decisive_fact": "The author reports PASS, but Coordinator has not traced the cancellation branch or the old consumer entrypoint.",
+        "expected_decision": "REJECT",
+        "completion_oracle": "No implementation is dispatched; close the missing producer/branch and its implementation sequence in the SDD before readiness."
+      },
+      "good": {
+        "task_mode": "admission",
+        "request": "Design and deliver a resumable signed artifact migration while preserving the old consumer until its migration completes.",
+        "material_action": "Admit the authored implementation route",
+        "starting_state": "Coordinator independently exercised cancellation between sign and commit plus old/new entrypoints, and bound the resulting traces to the current logic.",
+        "decisive_fact": "Coordinator independently exercised cancellation between sign and commit plus old/new entrypoints, and bound the resulting traces to the current logic.",
+        "expected_decision": "ALLOW",
+        "completion_oracle": "The closed route can proceed without invented defects, redundant permission requests, or a successor controller."
+      }
+    },
+    {
+      "id": "SDD-PREPARE-001",
+      "title": "Prepare an independent reviewer while implementation continues",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "repro",
+      "single_changed_fact": "whether the credential grants product execution or only frozen context reading",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Record the Architect verification for the current candidate.",
+        "starting_state": "Architect has only a READ_CONTEXT preparation grant.",
+        "material_action": "Submit a product verification result.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "Architect has only a READ_CONTEXT preparation grant.",
+        "completion_oracle": "Product event is rejected and Operator can continue."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Record the Architect verification for the current candidate.",
+        "starting_state": "Architect has a new authenticated formal verification lease.",
+        "material_action": "Submit a product verification result.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "Architect has a new authenticated formal verification lease.",
+        "completion_oracle": "Independent verification can proceed to the existing SHIP gate."
+      }
+    },
+    {
+      "id": "SDD-READ-REUSE-001",
+      "title": "Reuse retained context in the same runtime",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "repro",
+      "single_changed_fact": "whether the role still retains the matching authenticated reading",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Start a continuing Operator assignment in the same runtime.",
+        "starting_state": "The role lost its context and cannot attest retained understanding.",
+        "material_action": "Omit previously read unchanged text from startup.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "The role lost its context and cannot attest retained understanding.",
+        "completion_oracle": "The role reads the full required view and can start normally."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Start a continuing Operator assignment in the same runtime.",
+        "starting_state": "The same runtime retains the exact matching context and attests it.",
+        "material_action": "Omit previously read unchanged text from startup.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "The same runtime retains the exact matching context and attests it.",
+        "completion_oracle": "Matching bytes are omitted and current structured readback unlocks startup."
+      }
+    },
+    {
+      "id": "SDD-CHECK-REUSE-001",
+      "title": "Verification measures under its own lease",
+      "skill": "sdd-loop-delivery",
+      "evidence_level": "repro",
+      "single_changed_fact": "whether the cited run was measured under the current Architect lease on the current candidate",
+      "bad": {
+        "task_mode": "execute",
+        "request": "Complete final verification for the current candidate.",
+        "starting_state": "An earlier Architect lease recorded a PASS run for this acceptance; the local input tree looks unchanged, and no run exists under the current FINAL_VERIFY lease.",
+        "material_action": "Cite the earlier PASS run as the final verification check.",
+        "expected_decision": "REJECT",
+        "decisive_fact": "The cited run was measured under another lease; verification never carries a check over from another run or process.",
+        "completion_oracle": "The Architect measures the acceptance again with test-run under the current lease before recording the verdict."
+      },
+      "good": {
+        "task_mode": "execute",
+        "request": "Complete final verification for the current candidate.",
+        "starting_state": "The current FINAL_VERIFY Architect ran the acceptance through test-run under its own lease on the current candidate, and no later observation contradicts the PASS.",
+        "material_action": "Cite that measured run as the final verification check.",
+        "expected_decision": "ALLOW",
+        "decisive_fact": "The check is a controller-measured run of this lease on the current candidate with no counterevidence.",
+        "completion_oracle": "The verification records the check with its test_run_event_id and passes the measured-check rules."
+      }
+    }
+  ]
+}

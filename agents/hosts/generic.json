@@ -1,0 +1,38 @@
+{
+  "protocol": "host-profile/v1",
+  "id": "generic",
+  "display_name": "Generic host (single agent or unknown harness)",
+  "sources": [],
+  "skill_roots": ["~/.agents/skills"],
+  "tiers": {
+    "frontier": { "spawn_model": null, "accepted_models": [], "reasoning_effort": null },
+    "standard": { "spawn_model": null, "accepted_models": [], "reasoning_effort": null },
+    "efficient": { "spawn_model": null, "accepted_models": [], "reasoning_effort": null },
+    "review": { "spawn_model": null, "accepted_models": [], "reasoning_effort": null }
+  },
+  "context": {
+    "isolated": { "spawn_args": {}, "receipt_values": ["isolated", "fresh"] },
+    "inherited": { "spawn_args": {}, "receipt_values": ["inherited"] }
+  },
+  "concurrency": { "config_key": null },
+  "operations": {
+    "spawn": { "available": false, "reason": "Describe the harness in a host profile file (SDD_LOOP_HOST_PROFILE_FILE)." },
+    "direction_update": { "available": false, "reason": "Unknown host." },
+    "idle_continuation": { "available": false, "reason": "Unknown host." },
+    "wait": { "available": false, "reason": "Unknown host." },
+    "interrupt_turn": { "available": false, "reason": "Unknown host." },
+    "close": { "available": false, "reason": "Unknown host." },
+    "observe": { "available": false, "reason": "Unknown host." },
+    "resume_closed": { "available": false, "reason": "Unknown host." },
+    "goal_create": { "available": false, "reason": "Unknown host." },
+    "goal_read": { "available": false, "reason": "Unknown host." },
+    "goal_complete": { "available": false, "reason": "Unknown host." },
+    "goal_get": { "available": false, "reason": "Unknown host." },
+    "goal_set": { "available": false, "reason": "Unknown host." },
+    "goal_clear": { "available": false, "reason": "Unknown host." },
+    "turn_steer": { "available": false, "reason": "Unknown host." },
+    "turn_interrupt": { "available": false, "reason": "Unknown host." },
+    "usage_read": { "available": false, "reason": "Unknown host." },
+    "user_goal_control": { "available": false, "reason": "Unknown host." }
+  }
+}

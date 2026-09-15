@@ -1,0 +1,33 @@
+{
+  "name": "sdd-loop-delivery",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "bun": ">=1.4.2"
+  },
+  "scripts": {
+    "cli": "bun scripts/main.ts",
+    "format:check": "oxfmt --config oxfmt.json --check scripts tests",
+    "lint": "oxlint --config oxlint.json --deny-warnings scripts tests",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "check:imports": "bun scripts/check-import-boundaries.ts",
+    "check:coverage": "bun scripts/check-command-coverage.ts",
+    "check:cli": "bun scripts/check-cli-chain.ts",
+    "check:options": "bun scripts/check-command-options.ts",
+    "render:configuration": "bun scripts/render-configuration.ts",
+    "check:configuration": "bun scripts/render-configuration.ts --check",
+    "render:errors": "bun scripts/render-error-catalog.ts",
+    "behavior:plan": "bun scripts/behavior-eval.ts",
+    "review:release": "bun scripts/review-release.ts"
+  },
+  "dependencies": {
+    "typebox": "1.3.30"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "oxfmt": "0.67.0",
+    "oxlint": "1.82.0",
+    "typescript": "7.0.2"
+  }
+}

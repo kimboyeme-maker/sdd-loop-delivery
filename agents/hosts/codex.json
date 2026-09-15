@@ -1,0 +1,52 @@
+{
+  "protocol": "host-profile/v1",
+  "id": "codex",
+  "display_name": "OpenAI Codex (app-server, multi-agent v2)",
+  "sources": [
+    "https://developers.openai.com/codex/app-server",
+    "https://developers.openai.com/codex/multi-agent",
+    "https://developers.openai.com/codex/skills"
+  ],
+  "skill_roots": ["~/.agents/skills", "~/.codex/skills"],
+  "tiers": {
+    "frontier": { "spawn_model": "gpt-6-astra", "accepted_models": ["gpt-6-astra"], "reasoning_effort": "medium" },
+    "standard": { "spawn_model": "gpt-5.6-terra", "accepted_models": ["gpt-5.6-terra"], "reasoning_effort": "medium" },
+    "efficient": { "spawn_model": "gpt-5.6-luna", "accepted_models": ["gpt-5.6-luna"], "reasoning_effort": "medium" },
+    "review": { "spawn_model": "gpt-5.6-sol", "accepted_models": ["gpt-5.6-sol"], "reasoning_effort": "medium" }
+  },
+  "context": {
+    "isolated": {
+      "spawn_args": { "fork_turns": "none" },
+      "receipt_values": ["none", "fork_turns=none"],
+      "notes": "Omitting fork_turns forks full history and rejects model/effort overrides."
+    },
+    "inherited": { "spawn_args": {}, "receipt_values": ["inherited"] }
+  },
+  "concurrency": { "config_key": "agents.max_concurrent_threads_per_session" },
+  "operations": {
+    "spawn": {
+      "available": true,
+      "kind": "model-tool",
+      "call": "spawn_agent",
+      "params": ["task_name", "message", "fork_turns", "model", "reasoning_effort"],
+      "arg_map": { "name": "task_name", "prompt": "message", "model": "model", "effort": "reasoning_effort" }
+    },
+    "direction_update": { "available": true, "kind": "model-tool", "call": "send_message", "params": ["target", "message"], "starts_turn": false },
+    "idle_continuation": { "available": true, "kind": "model-tool", "call": "followup_task", "params": ["target", "message"], "starts_turn": true },
+    "wait": { "available": true, "kind": "model-tool", "call": "wait_agent", "params": ["timeout_ms"] },
+    "interrupt_turn": { "available": true, "kind": "model-tool", "call": "interrupt_agent", "params": ["target"], "closes_agent": false },
+    "close": { "available": false, "reason": "No close tool in the bundled collaboration surface. Interrupt preserves the runtime; archive/unsubscribe do not prove released capacity. Enable only through a verified custom host bridge." },
+    "observe": { "available": true, "kind": "model-tool", "call": "list_agents", "params": ["path_prefix"] },
+    "resume_closed": { "available": false, "reason": "No closed-runtime resume tool in the bundled collaboration surface. Use followup_task for an existing idle runtime; thread/resume requires a verified host bridge." },
+    "goal_create": { "available": true, "kind": "model-tool", "call": "create_goal", "params": ["objective"], "fails_when_goal_exists": true },
+    "goal_read": { "available": true, "kind": "model-tool", "call": "get_goal", "params": [] },
+    "goal_complete": { "available": true, "kind": "model-tool", "call": "update_goal", "params": ["status"] },
+    "goal_get": { "available": true, "kind": "host-method", "call": "thread/goal/get", "params": ["threadId"] },
+    "goal_set": { "available": true, "kind": "host-method", "call": "thread/goal/set", "params": ["threadId", "objective", "status", "tokenBudget"] },
+    "goal_clear": { "available": true, "kind": "host-method", "call": "thread/goal/clear", "params": ["threadId"] },
+    "turn_steer": { "available": true, "kind": "host-method", "call": "turn/steer", "params": ["threadId", "input", "expectedTurnId"] },
+    "turn_interrupt": { "available": true, "kind": "host-method", "call": "turn/interrupt", "params": ["threadId", "turnId"] },
+    "usage_read": { "available": true, "kind": "host-method", "call": "account/usage/read", "params": [] },
+    "user_goal_control": { "available": true, "kind": "user-command", "call": "/goal pause|resume|clear", "params": [] }
+  }
+}
