@@ -66,6 +66,7 @@ export const ERROR_CATEGORIES: Readonly<
     prefixes: [
       'CONTRACT',
       'DESIGN',
+      'DRAFT',
       'SDD',
       'DOCUMENT',
       'REQUIREMENT',
@@ -108,6 +109,8 @@ export const ERROR_CATEGORIES: Readonly<
       'READBACK',
       'CONTEXT',
       'CANDIDATE',
+      'ESCALATED',
+      'NO',
       'PREPARE',
       'RESUME',
       'CHECKPOINT',
@@ -172,7 +175,8 @@ export const ERROR_CATEGORIES: Readonly<
       'PROGRAM',
       'FAILURE',
       'MAX',
-      'BENCH'
+      'BENCH',
+      'BUDGET'
     ],
     remediation:
       'Dependency and artifact operations need their recorded custody and review; credit exhaustion needs user-control extend-credit from the user; user decisions are asked once with a complete authorization request.'
