@@ -884,6 +884,16 @@ test('a contract claiming convergence agrees with its own open lists, reviews an
       'DESIGN_CONVERGENCE_INCONSISTENT: SYNTHESIS'
     ],
     [
+      // A PASS the document has since outrun is stale: the latest entry per lens decides.
+      (g) =>
+        g.design_convergence.review_passes.push({
+          lens: 'ADVERSARIAL',
+          result: 'FAIL',
+          evidence: 'a later review found an open branch'
+        }),
+      'DESIGN_CONVERGENCE_INCONSISTENT: ADVERSARIAL'
+    ],
+    [
       (g) => (g.implementation_logic.paths[0].challenges = []),
       'DESIGN_CONVERGENCE_CHALLENGE_REQUIRED'
     ],
@@ -897,4 +907,26 @@ test('a contract claiming convergence agrees with its own open lists, reviews an
     mutate(graph)
     expect(() => assertDesignConvergence(graph as unknown as Contract)).toThrow(code)
   }
+})
+
+test('a lens that failed and was rerun converges on its latest pass', () => {
+  const graph = deliveryGraph()
+  for (const path of graph.implementation_logic.paths)
+    path.challenges = [{ premise: 'p', result: 'CLOSED', evidence: ['probe.log'] }]
+  graph.design_convergence = {
+    status: 'CONVERGED',
+    unresolved_information_questions: [],
+    pending_authority_confirmations: [],
+    route_critical_unknowns: [],
+    blocking_findings: [],
+    material_findings: [],
+    stable_after_last_normative_change: true,
+    review_passes: [
+      { lens: 'ADVERSARIAL', result: 'FAIL', evidence: 'first review found an open branch' },
+      { lens: 'SYNTHESIS', result: 'PASS', evidence: 'route basis' },
+      { lens: 'ACCEPTANCE_TOPOLOGY', result: 'PASS', evidence: 'failure isolation' },
+      { lens: 'ADVERSARIAL', result: 'PASS', evidence: 'rerun after the branch was closed' }
+    ]
+  }
+  expect(() => assertDesignConvergence(graph as unknown as Contract)).not.toThrow()
 })

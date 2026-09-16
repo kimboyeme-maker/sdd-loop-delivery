@@ -36,6 +36,14 @@ function contractIds(contract: Item): [unknown, string][] {
   )
 }
 
+/**
+ * Which policy a read holds the document to. `legacy` keeps an existing document readable and is
+ * what every execution and observer path uses. `current` is the author-facing gate selected by
+ * `--document-policy current`: a new executable document declares the policy instead of being
+ * exempted by omitting it.
+ */
+export type DocumentPolicy = 'current' | 'legacy'
+
 /** Derive descriptions and links from normative tables. The index cannot store status,
  * add obligations, or introduce a second dependency graph. Missing policy preserves
  * existing documents; opting into the policy requires the complete checked index.
@@ -43,15 +51,15 @@ function contractIds(contract: Item): [unknown, string][] {
 export function documentPresentation(
   contract: Item,
   sources: Record<string, string>,
-  required = false
+  policy: DocumentPolicy = 'legacy'
 ): Item | null {
   if (contract.document_policy != null && contract.document_policy !== 'sdd-document/v1')
     throw Error('SDD_DOCUMENT_POLICY_UNSUPPORTED')
-  const strict = contract.document_policy === 'sdd-document/v1'
-  if (required && !strict) throw Error('SDD_DOCUMENT_POLICY_REQUIRED')
+  const declared = contract.document_policy === 'sdd-document/v1'
+  if (!declared && policy === 'current') throw Error('SDD_DOCUMENT_POLICY_REQUIRED')
   if (contract.presentation == null) {
-    if (required || strict) throw Error('SDD_PRESENTATION_REQUIRED')
-    return null
+    if (!declared) return null
+    throw Error('SDD_PRESENTATION_REQUIRED')
   }
   const presentation = object(contract.presentation)
   if (
@@ -82,7 +90,8 @@ export function documentPresentation(
   const pattern = new RegExp(SDD_DOCUMENT_ID_PATTERN)
   const id = (value: unknown, kind?: string): string => {
     if (typeof value !== 'string' || !value.trim()) throw Error('SDD_ID_REQUIRED')
-    if (!strict && !pattern.test(value)) return value
+    // A document that never opted into the policy keeps its own identifier scheme.
+    if (!declared && !pattern.test(value)) return value
     if (
       !pattern.test(value) ||
       !prefixes[value.slice(0, 2)] ||
@@ -230,8 +239,11 @@ export function documentPresentation(
         throw Error('SDD_PRESENTATION_BATCH_SCOPE_INVALID:' + item.id)
     }
   // The final SHIP gate cannot release while any Must-Ship acceptance is outside every SHIP row.
+  // Under the current policy an absent row is the worst case rather than an exemption, so the
+  // whole set is reported; other reads keep checking only what a declared row claims, because
+  // structural checks such as document-check do not own the delivery gate.
   const shipRows = derived.filter((item) => item.gate === 'SHIP')
-  if (shipRows.length) {
+  if (shipRows.length || policy === 'current') {
     const covered = new Set(shipRows.flatMap((item) => item.acceptance_ids as string[]))
     const missing = array(contract.requirements)
       .filter((req) => req.kind === 'must-ship')

@@ -19,6 +19,7 @@ import {
   validateDraft,
   validateDraftText
 } from '../controllers/document.controller'
+import type { DocumentPolicy } from '../domain/document-presentation'
 import { snapshotWorktree } from '../resource/worktree/snapshot'
 import { preActionGate } from '../controllers/action-gate.controller'
 import { hostReceipt } from '../controllers/host.controller'
@@ -177,6 +178,9 @@ const documentCommand = (name: string): Handler =>
     for (const policy of ['--document-policy', '--design-policy'])
       if (has(policy) && value(policy) !== 'current')
         throw new UsageError(`DOCUMENT_POLICY_INVALID:${policy}`)
+    // The flag selects how strictly the document is read; without it an existing document that
+    // never opted into the policy stays readable.
+    const documentPolicy: DocumentPolicy = has('--document-policy') ? 'current' : 'legacy'
     const sdd = value('--sdd')
     if (name === 'validate-draft' && has('--documents-file')) {
       const file = value('--documents-file')
@@ -194,7 +198,8 @@ const documentCommand = (name: string): Handler =>
         validateDraftText(
           roots[0]!.content as string,
           sdd,
-          entries as { path: string; content: string }[]
+          entries as { path: string; content: string }[],
+          documentPolicy
         )
       )
     }
@@ -203,14 +208,14 @@ const documentCommand = (name: string): Handler =>
       const text = draftFile
         ? readFileSync(draftFile, 'utf8')
         : await new Response(Bun.stdin).text()
-      return byValidity(validateDraftText(text, draftFile ?? '<stdin>'))
+      return byValidity(validateDraftText(text, draftFile ?? '<stdin>', [], documentPolicy))
     }
     if (!sdd) throw new UsageError(SDD_REQUIRED)
     return byValidity(
       name === 'validate'
-        ? validateDocument(sdd)
+        ? validateDocument(sdd, documentPolicy)
         : name === 'validate-draft'
-          ? validateDraft(sdd)
+          ? validateDraft(sdd, documentPolicy)
           : documentCheck(sdd)
     )
   })

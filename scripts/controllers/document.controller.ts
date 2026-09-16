@@ -3,6 +3,7 @@ import { checkDocument, checkDocumentText } from '../domain/document-check'
 import { readFileSync } from 'node:fs'
 import { markdownSections } from '../utils/markdown-sections'
 import { readContractText } from '../domain/contract'
+import type { DocumentPolicy } from '../domain/document-presentation'
 import { assertDeliveryPlan } from '../domain/delivery-plan'
 import { assertAuthoringClosure } from '../domain/policies/authoring-closure'
 import { assertContractReferences } from '../helpers/contract-references'
@@ -42,7 +43,8 @@ export function documentCheck(sdd: string): DocumentCheckResult {
 function validateText(
   text: string,
   sdd: string,
-  documents: readonly { path: string; content: string }[] = []
+  documents: readonly { path: string; content: string }[] = [],
+  policy: DocumentPolicy = 'legacy'
 ) {
   const diagnostics: ReturnType<typeof checkDocument>[number][] = []
   let deliveryPlan: ReturnType<typeof assertDeliveryPlan> = null
@@ -54,7 +56,9 @@ function validateText(
   try {
     if (documents.length && sdd === '<stdin>') throw Error('DRAFT_ROOT_PATH_REQUIRED')
     const contract =
-      sdd === '<stdin>' ? readContractText(text) : readContractDocument(sdd, text, documents)
+      sdd === '<stdin>'
+        ? readContractText(text, { self: text }, policy)
+        : readContractDocument(sdd, text, documents, policy)
     if (!contract) {
       diagnostics.push(...checkDocumentText(text))
       // validate is the implementation gate; prose-only documents use document-check instead.
@@ -137,21 +141,22 @@ function validateText(
     ...(architecture ? { architecture } : {})
   }
 }
-export function validateDocument(sdd: string) {
-  return validateText(readFileSync(sdd, 'utf8'), sdd)
+export function validateDocument(sdd: string, policy: DocumentPolicy = 'legacy') {
+  return validateText(readFileSync(sdd, 'utf8'), sdd, [], policy)
 }
 /** File-backed draft validation shares the exact memory parser and never creates state. */
-export function validateDraft(sdd: string) {
-  return validateDraftText(readFileSync(sdd, 'utf8'), sdd)
+export function validateDraft(sdd: string, policy: DocumentPolicy = 'legacy') {
+  return validateDraftText(readFileSync(sdd, 'utf8'), sdd, [], policy)
 }
 /** Validate candidate bytes without creating an SDD or sidecar. */
 export function validateDraftText(
   text: string,
   source = '<stdin>',
-  documents: readonly { path: string; content: string }[] = []
+  documents: readonly { path: string; content: string }[] = [],
+  policy: DocumentPolicy = 'legacy'
 ) {
   return {
-    ...validateText(text, source, documents),
+    ...validateText(text, source, documents, policy),
     draft: true as const,
     persisted: false as const
   }

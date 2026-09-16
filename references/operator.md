@@ -25,7 +25,7 @@ Operator authenticates only through the file named by `SDD_LOOP_AGENT_TOKEN_FILE
 
 ## Native payload preparation
 
-Use operator-receipt-scaffold --agent-id <id> --lease-id <id> --type implementation|contract_readback|self_check to obtain the actual event fields. Fill empty values from the current admission and real observations; null results intentionally cannot pass validation. Run operator-receipt-lint --payload-file <file> --type <same-type> before authenticated submission. This lint shares the role payload schema, but does not authenticate identity, inspect the worktree or certify an oracle. Preserve the full rejected payload and fix it; never omit a rejected change to get acceptance.
+Use operator-receipt-scaffold --agent-id <id> --lease-id <id> --type implementation|contract_readback|self_check to obtain the actual event fields. Fill empty values from the current admission and real observations; null results intentionally cannot pass validation. Run operator-receipt-lint --payload-file <file> --type <same-type> before authenticated submission. This lint shares the role payload schema, but does not authenticate identity, inspect the worktree or certify an oracle. Preserve the full rejected payload and fix it; never omit a rejected change to get acceptance. Where a receipt carries `semantic_ownership_review.semantic_ids`, those IDs are the admitted `semantic_ownership.items` from the admission payload, not the SDD prose's own semantic IDs; the two namespaces usually differ, and only the admitted set passes.
 
 ## Repair after a failed check
 

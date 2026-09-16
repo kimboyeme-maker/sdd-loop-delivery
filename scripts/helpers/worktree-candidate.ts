@@ -140,3 +140,51 @@ export function assertWorktreeCandidate(
     throw new Error('CANDIDATE_MANIFEST_DELTA_MISMATCH')
   return delta
 }
+
+/**
+ * Reject a lease whose declared scope names a root Git ignores. A repository may ignore a whole
+ * directory it nonetheless owns (a registry under an ignored `docs/`), and an ignored root
+ * contributes nothing to a snapshot, so every write to it stays invisible in the candidate delta.
+ * The Operator would then have to choose between a manifest mismatch and a receipt that hides a
+ * file it wrote. An empty but unignored root is fine: files created there are observed as soon as
+ * they exist. Say this while the baseline is still being frozen, when naming the root as a
+ * generated path still fixes it.
+ */
+export function assertScopeObserved(
+  scope: readonly string[],
+  root: string,
+  owners: WorktreeSnapshot['owners'],
+  generatedPaths: readonly string[] = []
+): void {
+  // An identity the owner table does not map is not a workspace path at all; observability
+  // cannot be decided for it here, and inventing a verdict would be worse than declining one.
+  const asPath = (value: string): string | undefined => {
+    try {
+      return workspacePath(value)
+    } catch {
+      return undefined
+    }
+  }
+  const generated = generatedPaths.map(asPath).filter((value) => value !== undefined)
+  for (const name of scope) {
+    const owner = asPath(normalizeOwner(name, owners))
+    if (owner === undefined || owner === '.') continue
+    if (
+      generated.some(
+        (value) => value === owner || value.startsWith(`${owner}/`) || owner.startsWith(`${value}/`)
+      )
+    )
+      continue
+    const ignored = Bun.spawnSync(['git', 'check-ignore', '-q', '--', owner], {
+      cwd: root,
+      stdout: 'ignore',
+      stderr: 'ignore'
+    })
+    // Exit 0 means the path matches an ignore rule; 1 means it does not. Anything else is a
+    // failed query, not a verdict, so it does not reject the dispatch.
+    if (ignored.exitCode === 0)
+      throw new Error(
+        `DISPATCH_SCOPE_NOT_OBSERVED: ${name} (Git ignores this root; pass --generated-path)`
+      )
+  }
+}

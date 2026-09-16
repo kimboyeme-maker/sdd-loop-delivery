@@ -46,8 +46,10 @@ export function contextRouting(
     return target
   }
   const prose = [...markdownProseLines(text)].map((line) => line.text)
+  // Any heading level declares the root entry: a repository whose SDDs number their top-level
+  // sections nests it, and matching only `## ` discarded the whole map without a diagnostic.
   const declarations = prose.flatMap((line, index) =>
-    /^##\s+Agent Context\s*$/.test(line) ? [index] : []
+    /^#{2,6}\s+Agent Context\s*$/.test(line) ? [index] : []
   )
   if (declarations.length > 1) throw new Error('AGENT_CONTEXT_ENTRY_AMBIGUOUS')
   const declaration = declarations[0]
@@ -56,7 +58,8 @@ export function contextRouting(
     mapHash: string | null = null
   if (declaration !== undefined) {
     const rest = prose.slice(declaration + 1)
-    const end = rest.findIndex((line) => /^##\s+|^<!--\s*sdd-contract:start/.test(line))
+    // The entry ends at the next heading of any level, not only a level-two one.
+    const end = rest.findIndex((line) => /^#{1,6}\s+|^<!--\s*sdd-contract:start/.test(line))
     const lines = rest.slice(0, end < 0 ? undefined : end).filter((line) => line.trim())
     const entry = lines.length === 1 ? link.exec(lines[0]!) : null
     if (!entry) throw new Error('AGENT_CONTEXT_ENTRY_INVALID')

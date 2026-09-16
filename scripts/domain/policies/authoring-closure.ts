@@ -1,5 +1,6 @@
 import type { Contract } from '../contract'
 import { assertAcceptanceExecution } from './acceptance-execution'
+import { assertAcceptanceShape } from './verification-scope'
 import { assertTestFileName } from './test-naming'
 import {
   assertDesignConvergence,
@@ -48,6 +49,21 @@ export function assertAuthoringClosure(contract: Contract): void {
   )
     throw new Error('CONTRACT_RUNTIME_RESOLUTION_INVALID')
   for (const requirement of contract.requirements as unknown as Item[]) {
+    // A decision requirement is the record of who may answer and what was answered. Without those
+    // fields the graph shows a dependency on a choice nobody can audit, so the author fixes it here
+    // rather than leaving the Coordinator to reconstruct an authority it cannot see.
+    if (requirement.requirement_type === 'decision') {
+      const decision = object(requirement.decision)
+      if (!decision || ['authority', 'question', 'status'].some((field) => !text(decision[field])))
+        throw new Error('CONTRACT_DECISION_METADATA_REQUIRED')
+      if (!['pending', 'resolved'].includes(String(decision.status)))
+        throw new Error('CONTRACT_DECISION_STATUS_INVALID')
+      if (
+        decision.status === 'resolved' &&
+        ['resolution', 'evidence'].some((field) => !text(decision[field]))
+      )
+        throw new Error('CONTRACT_DECISION_RESOLUTION_REQUIRED')
+    }
     if (requirement.deferred === undefined) continue
     const deferred = object(requirement.deferred)
     if (
@@ -67,5 +83,10 @@ export function assertAuthoringClosure(contract: Contract): void {
   assertDesignConvergence(contract)
   assertSharedMechanismWrites(contract)
   migrationInventory(contract)
-  if (Array.isArray(contract.acceptance)) assertAcceptanceExecution(contract)
+  // The same shape admission requires, checked while the author can still fix it. Guarded like the
+  // execution check below: a contract with no acceptance block at all is rejected upstream.
+  if (Array.isArray(contract.acceptance)) {
+    assertAcceptanceShape(contract)
+    assertAcceptanceExecution(contract)
+  }
 }

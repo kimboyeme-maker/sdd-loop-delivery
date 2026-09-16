@@ -68,8 +68,11 @@ export function roundEvents(control: ControlSnapshot): Item[] {
 /** Optimistic concurrency: the caller names the phase and contract revision it reasoned about. */
 export function assertExpected(state: Item, expectedState: string, expectedRevision: string): void {
   if (String(state.phase ?? '') !== expectedState) throw new Error('EXPECTED_STATE_MISMATCH')
+  // The control revision counter is a different number; naming the field stops callers passing it.
   if (String(state.contract_revision ?? '') !== expectedRevision)
-    throw new Error('EXPECTED_REVISION_MISMATCH')
+    throw new Error(
+      `EXPECTED_REVISION_MISMATCH: expected contract_revision ${String(state.contract_revision ?? '')}`
+    )
 }
 
 /** The presented credential must hash to the current epoch's registered Coordinator token. */

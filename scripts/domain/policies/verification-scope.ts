@@ -15,19 +15,12 @@ const equal = (left: Set<string>, right: readonly string[]): boolean =>
   left.size === new Set(right).size && right.every((id) => left.has(id))
 
 /** Bind each planned verification surface to its exact normative method and scope. */
-export function assertVerificationScope(
-  contract: Contract,
-  payload: Record<string, unknown>
-): void {
-  const scope = record(payload.verification_scope)
-  if (
-    !scope ||
-    scope.mode !== 'CAUSAL_CLOSURE' ||
-    scope.external_failure_policy !== 'NON_BLOCKING_UNLESS_CAUSAL_OR_ORACLE_MASKING' ||
-    !Array.isArray(scope.surfaces) ||
-    !scope.surfaces.length
-  )
-    throw new Error('CONTRACT_ADMISSION_VERIFICATION_SCOPE_INVALID')
+/**
+ * The acceptance shape the contract itself must carry: identity, links, and the fields a case needs
+ * to be runnable at all. Admission used to be the first place this ran, which meant an author saw a
+ * green `validate` and only learned at admission that a case was unrunnable. `validate` calls it too.
+ */
+export function assertAcceptanceShape(contract: Contract): Map<string, Record<string, unknown>> {
   if (!Array.isArray(contract.acceptance)) throw new Error('CONTRACT_ACCEPTANCE_REQUIRED')
   const reverseLinks = new Map<string, Set<string>>()
   for (const requirement of contract.requirements)
@@ -58,6 +51,23 @@ export function assertVerificationScope(
   }
   if ([...reverseLinks.keys()].some((id) => !byId.has(id)))
     throw new Error('CONTRACT_ACCEPTANCE_REQUIREMENT_LINK_MISMATCH')
+  return byId
+}
+
+export function assertVerificationScope(
+  contract: Contract,
+  payload: Record<string, unknown>
+): void {
+  const scope = record(payload.verification_scope)
+  if (
+    !scope ||
+    scope.mode !== 'CAUSAL_CLOSURE' ||
+    scope.external_failure_policy !== 'NON_BLOCKING_UNLESS_CAUSAL_OR_ORACLE_MASKING' ||
+    !Array.isArray(scope.surfaces) ||
+    !scope.surfaces.length
+  )
+    throw new Error('CONTRACT_ADMISSION_VERIFICATION_SCOPE_INVALID')
+  const byId = assertAcceptanceShape(contract)
   const surfaceIds = new Set<string>(),
     coveredRequirements = new Set<string>(),
     coveredAcceptance = new Set<string>()

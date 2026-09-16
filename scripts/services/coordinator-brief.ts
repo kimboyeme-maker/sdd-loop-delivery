@@ -7,11 +7,26 @@ import { COORDINATOR_BRIEF_RECENT_EVENTS } from '../config/constants'
 import { assertShipEvidence } from '../helpers/ship-evidence'
 import { admittedPacketIds, operatorTestUsage } from '../helpers/test-budget-usage'
 import { readContractDocument } from './contract-document'
-import { phaseTransitions, type Phase } from '../domain/policies/phase'
+import { STAGE_ROLE_EVIDENCE, phaseTransitions, type Phase } from '../domain/policies/phase'
 import { currentAdmission } from '../helpers/admission-authority'
 import { creditLedger } from '../helpers/credit-ledger'
 import { publicLease } from '../helpers/public-lease'
 import { readSnapshot, sidecarPaths } from '../resource/state'
+
+/** The role evidence the current stage transition consumes, and whether it is already recorded. */
+function awaitedRoleEvidence(state: Item, events: Item[]): Item | null {
+  const gate = STAGE_ROLE_EVIDENCE[state.phase as Phase]
+  if (!gate) return null
+  const id = object(state.last_role_events)?.[gate.type]
+  const matches = typeof id === 'string' ? eventsWithId(events, id) : []
+  const event = matches.length === 1 ? matches[0] : undefined
+  const recorded =
+    !!event &&
+    event.type === gate.type &&
+    event.state === state.phase &&
+    event.contract_revision === state.contract_revision
+  return { ...gate, recorded, event_id: recorded ? id : null }
+}
 
 type Item = Record<string, unknown>
 const object = (value: unknown): Item | undefined =>
@@ -245,6 +260,9 @@ export function coordinatorBrief(
     authority_epoch: state.authority_epoch ?? null,
     control_revision: state.revision ?? null,
     legal_next_phases: phaseTransitions()[state.phase as Phase] ?? [],
+    // A legal edge is not a permitted one: naming the evidence the stage still waits for keeps
+    // the Coordinator from learning it by attempting the transition and reading ROLE_GATE_MISSING.
+    awaited_role_evidence: awaitedRoleEvidence(state, events),
     obligations: obligations(sdd, state, events, token, !!admission, packets),
     lease_deadlines: leaseDeadlines(state),
     // The SHIP gate's verdict and exact rejection while final verification is under way.

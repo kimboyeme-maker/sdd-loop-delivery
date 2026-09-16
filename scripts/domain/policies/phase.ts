@@ -81,3 +81,17 @@ export function assertRuntimeRecordPhase(phase: unknown, action: unknown): void 
     return
   assertMutablePhase(phase)
 }
+
+/**
+ * Stage transitions that consume direct role evidence, exactly as the transition controller
+ * enforces them. A phase listed here cannot advance to `to` on the Coordinator's decision alone,
+ * however legal that edge looks in the transition table, so readers of the table consult this too.
+ */
+export const STAGE_ROLE_EVIDENCE: Partial<
+  Record<Phase, Readonly<{ to: Phase; role: string; type: string }>>
+> = {
+  OPERATOR_READBACK: { to: 'READBACK_APPROVED', role: 'operator', type: 'contract_readback' },
+  IMPLEMENTING: { to: 'OPERATOR_SELF_CHECK', role: 'operator', type: 'implementation' },
+  ARCHITECT_VERIFY: { to: 'COORDINATOR_TRIAGE', role: 'architect', type: 'verification' },
+  FINAL_VERIFY: { to: 'SHIP', role: 'architect', type: 'verification' }
+}

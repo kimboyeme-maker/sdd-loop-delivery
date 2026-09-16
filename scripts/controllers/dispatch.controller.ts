@@ -26,7 +26,7 @@ import {
   hasPriorNoProgress,
   resumeCheckpointRecovery
 } from '../helpers/dispatch-metadata'
-import { productSnapshot } from '../helpers/worktree-candidate'
+import { assertScopeObserved, productSnapshot } from '../helpers/worktree-candidate'
 import { chargeCredit, creditLedger, creditWeight } from '../helpers/credit-ledger'
 import { hostProfile } from '../config/host'
 import { ESCALATED_OPERATOR_MIN_FAILURES, TOKENS_PER_CREDIT_UNIT } from '../config/constants'
@@ -430,7 +430,13 @@ export function dispatch(
       if (!((retained.generated_paths as string[]) ?? []).every((path) => generated.includes(path)))
         throw new Error('WORKTREE_GENERATED_SCOPE_CANNOT_SHRINK')
       operatorBaseline = retained.snapshot
-    } else operatorBaseline = productSnapshot(sdd, options.worktreeRoot, options.generatedPaths)
+    } else {
+      const frozen = productSnapshot(sdd, options.worktreeRoot, options.generatedPaths)
+      // Only the round's first Operator lease freezes a baseline, so this is the last point
+      // at which an unobservable scope root can still be fixed by widening --generated-path.
+      assertScopeObserved(scope, options.worktreeRoot, frozen.owners, options.generatedPaths)
+      operatorBaseline = frozen
+    }
   }
   const eventId = `EVT-${randomUUID()}`
   const lease = {

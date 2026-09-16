@@ -187,10 +187,15 @@ export function assertDesignConvergence(contract: Contract): void {
       throw new Error(`DESIGN_CONVERGENCE_INCONSISTENT: ${key}`)
   if (convergence.stable_after_last_normative_change !== true)
     throw new Error('DESIGN_CONVERGENCE_INCONSISTENT: stable_after_last_normative_change')
+  // The latest pass per lens decides, not any pass: a PASS recorded before a later FAIL is a stale
+  // result, and convergence claimed on it would rest on a review the document has since outrun.
+  // Earlier entries stay as history; re-running a lens after a fix is how a FAIL is answered.
   const passes = list(convergence.review_passes)
-  for (const lens of CONVERGENCE_LENSES)
-    if (!passes.some((pass) => pass.lens === lens && pass.result === 'PASS' && text(pass.evidence)))
+  for (const lens of CONVERGENCE_LENSES) {
+    const latest = passes.findLast((pass) => pass.lens === lens)
+    if (!latest || latest.result !== 'PASS' || !text(latest.evidence))
       throw new Error(`DESIGN_CONVERGENCE_INCONSISTENT: ${lens}`)
+  }
   const mustShip = new Set(
     contract.requirements.filter((req) => req.kind === 'must-ship').map((req) => req.id)
   )

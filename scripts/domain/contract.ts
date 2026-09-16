@@ -1,4 +1,4 @@
-import { documentPresentation } from './document-presentation'
+import { documentPresentation, type DocumentPolicy } from './document-presentation'
 import { resolveDesignDetail } from './design-detail'
 import { assertDeliveryPlan } from './delivery-plan'
 import { assertExperienceContract } from './experience-contract'
@@ -39,7 +39,8 @@ export function contractJsonText(text: string): string | null {
 /** Parse the normative contract block without inferring absent fields from prose. */
 export function readContractText(
   text: string,
-  sources: Readonly<Record<string, string>> = { self: text }
+  sources: Readonly<Record<string, string>> = { self: text },
+  policy: DocumentPolicy = 'legacy'
 ): Contract | null {
   const json = contractJsonText(text)
   if (json === null) return null
@@ -130,7 +131,7 @@ export function readContractText(
       if (count === 0) ready.push(id)
     }
   if (ready.length !== requirements.length) throw new Error('CONTRACT_DEPENDENCY_CYCLE')
-  documentPresentation(contract, sources)
+  documentPresentation(contract, sources, policy)
   assertDeliveryPlan(contract)
   assertDeliveryPlatforms(contract)
   assertExperienceContract(contract)

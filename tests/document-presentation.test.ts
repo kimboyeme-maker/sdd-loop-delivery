@@ -143,3 +143,23 @@ test('SHIP gate rows together cover every Must-Ship acceptance', () => {
     'SDD_PRESENTATION_SHIP_COVERAGE_INCOMPLETE:YS02'
   )
 })
+
+test('the current policy requires the declaration and a SHIP row; legacy keeps reading', () => {
+  const declared = contract()
+  const undeclared = { ...declared, document_policy: undefined }
+  // Legacy is how every execution and observer path reads, and it must stay readable.
+  expect(documentPresentation(undeclared, { self: source })).not.toBeNull()
+  expect(() => documentPresentation(undeclared, { self: source }, 'current')).toThrow(
+    'SDD_DOCUMENT_POLICY_REQUIRED'
+  )
+
+  const mustShip = {
+    ...declared,
+    requirements: [{ id: 'XQ01', kind: 'must-ship', acceptance: ['YS01'] }]
+  }
+  // No SHIP row covers nothing, so the current policy names the whole uncovered set.
+  expect(() => documentPresentation(mustShip, { self: source }, 'current')).toThrow(
+    'SDD_PRESENTATION_SHIP_COVERAGE_INCOMPLETE:YS01'
+  )
+  expect(documentPresentation(mustShip, { self: source })).not.toBeNull()
+})

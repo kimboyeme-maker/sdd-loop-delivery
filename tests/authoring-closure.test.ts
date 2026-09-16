@@ -95,8 +95,76 @@ test('current authoring output closes inventory authority, deferral metadata and
   expect(() => assertAuthoringClosure(reader('packages/core/test/hotfix.test.ts'))).toThrow(
     'TEST_FILE_BUSINESS_NAME_REQUIRED'
   )
-  // Acceptance execution is reported at authoring time, not first at admission.
+  // Acceptance shape and execution are both reported at authoring time, not first at admission.
+  const acceptance = (patch: Record<string, unknown> = {}) => ({
+    id: 'YS01',
+    requirement_ids: ['XQ01'],
+    oracle: 'the supported runtime returns the expected result',
+    method: 'pnpm --filter @demo/core test',
+    environment: 'supported runtime',
+    packages: ['@demo/core'],
+    ...patch
+  })
+  // The reverse link lives on the requirement, so both directions have to be present.
+  const verified = (cases: Record<string, unknown>[]) =>
+    contract({
+      requirements: [{ id: 'XQ01', kind: 'must-ship', title: 'core', acceptance: ['YS01'] }],
+      acceptance: cases
+    })
+  for (const missing of ['oracle', 'method', 'environment', 'packages']) {
+    const incomplete = acceptance()
+    delete (incomplete as Record<string, unknown>)[missing]
+    expect(() => assertAuthoringClosure(verified([incomplete]))).toThrow(
+      'CONTRACT_ACCEPTANCE_INVALID'
+    )
+  }
   expect(() =>
-    assertAuthoringClosure(contract({ acceptance: [{ id: 'YS01', requirement_ids: ['XQ01'] }] }))
-  ).toThrow('ACCEPTANCE_EXECUTION_REQUIRED')
+    assertAuthoringClosure(verified([acceptance({ requirement_ids: ['XQ02'] })]))
+  ).toThrow('CONTRACT_ACCEPTANCE_REQUIREMENT_LINK_MISMATCH')
+  expect(() => assertAuthoringClosure(verified([acceptance()]))).toThrow(
+    'ACCEPTANCE_EXECUTION_REQUIRED'
+  )
+})
+
+test('a decision requirement must record who may answer, the question and its status', () => {
+  const decide = (decision?: Record<string, unknown>) =>
+    contract({
+      requirements: [
+        {
+          id: 'JC01',
+          title: 'Which rejection the product keeps',
+          kind: 'must-ship',
+          requirement_type: 'decision',
+          ...(decision ? { decision } : {})
+        }
+      ]
+    }) as Contract
+
+  expect(() => assertAuthoringClosure(decide())).toThrow('CONTRACT_DECISION_METADATA_REQUIRED')
+  expect(() =>
+    assertAuthoringClosure(decide({ authority: 'user', question: 'which one?' }))
+  ).toThrow('CONTRACT_DECISION_METADATA_REQUIRED')
+  expect(() =>
+    assertAuthoringClosure(decide({ authority: 'user', question: 'which one?', status: 'open' }))
+  ).toThrow('CONTRACT_DECISION_STATUS_INVALID')
+  // Resolved is a claim about an answer, so the answer and its evidence must be there.
+  expect(() =>
+    assertAuthoringClosure(
+      decide({ authority: 'user', question: 'which one?', status: 'resolved' })
+    )
+  ).toThrow('CONTRACT_DECISION_RESOLUTION_REQUIRED')
+  expect(() =>
+    assertAuthoringClosure(decide({ authority: 'user', question: 'which one?', status: 'pending' }))
+  ).not.toThrow()
+  expect(() =>
+    assertAuthoringClosure(
+      decide({
+        authority: 'user',
+        question: 'which one?',
+        status: 'resolved',
+        resolution: 'return the Invalid variant',
+        evidence: 'user reply choosing it'
+      })
+    )
+  ).not.toThrow()
 })
