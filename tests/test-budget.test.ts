@@ -168,7 +168,8 @@ test('the controller kills a run at the acceptance timeout', () => {
   const contract = structuredClone(fixture.contract) as unknown as Item
   const acceptance = (contract.acceptance as Item[])[0]!
   acceptance.execution = { ...(acceptance.execution as Item), timeout_seconds: 2 }
-  const chain = createNativeChain(root, { contract })
+  // The acceptance declares the slow command, because test-run binds argv to the declared method.
+  const chain = createNativeChain(root, { contract, acceptanceMethod: 'sleep 5' })
   try {
     chain.setup()
     chain.admit()
@@ -270,7 +271,13 @@ test('packet and round test budgets are measured separately', () => {
 
 test('an executed Architect check is exactly its controller-measured run', () => {
   const root = mkdtempSync(join(tmpdir(), 'test-budget-verify-'))
-  const chain = createNativeChain(root)
+  // The declared method reads a flag outside the workspace, so this test can produce a genuinely
+  // failing run without touching the candidate: test-run binds argv to the method, and both the
+  // copy gate and the candidate gate refuse a product edited to make a command fail.
+  const flag = join(root, 'fail-flag')
+  const chain = createNativeChain(root, {
+    acceptanceMethod: `test ! -f ${flag}`
+  })
   try {
     chain.setup()
     chain.toArchitectVerify()
@@ -287,6 +294,7 @@ test('an executed Architect check is exactly its controller-measured run', () =>
     // A PASS check citing a run that actually failed is rejected.
     const failCopy = join(root, 'fail-copy')
     cpSync(chain.workspace, failCopy, { recursive: true })
+    writeFileSync(flag, 'the declared method fails while this exists')
     const failed = timedRun(
       chain.sdd,
       'architect',
@@ -295,12 +303,13 @@ test('an executed Architect check is exactly its controller-measured run', () =>
       chain.phase(),
       'v1',
       ['YS01'],
-      ['sh', '-c', 'exit 1'],
+      ['sh', '-c', chain.declaredMethod],
       failCopy,
       chain.token(architect),
       COORDINATOR_TOKEN
     )
     expect(failed.outcome).toBe('FAIL')
+    rmSync(flag)
     expect(
       withCheck({ test_run_event_id: failed.eventId, duration_seconds: failed.duration_seconds })
     ).toThrow('VERIFICATION_CHECK_MEASUREMENT_MISMATCH')
@@ -375,7 +384,7 @@ test('final verification traces the product through the candidate after the roun
         chain.phase(),
         'v1',
         ['YS01'],
-        ['true'],
+        ['sh', '-c', chain.declaredMethod],
         directory,
         chain.token(architect),
         COORDINATOR_TOKEN

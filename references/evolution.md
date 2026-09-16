@@ -42,3 +42,35 @@ Each proposal has a stable `key` (`target:kind:root`), the cited issue, a change
 4. Run the target skill's release checks (loop: `bun run review:release`; create-sdd: link check and `validate-draft` of its examples) and cite the proposal key in the change description.
 
 Never paste transcripts, private paths or credentials into cases, and never widen a gate to hide a recurring failure.
+
+## Recording a finding the delivery makes about a skill
+
+Everything else in a retrospective is derived: counters, rejection codes, amendment reasons. Those
+capture friction, not substance — a delivery that discovers a real defect in `create-sdd` or in this
+loop has no way to say so through a counter. `record --type finding_proposal` is that channel, and
+it is the only issue a retrospective does not infer.
+
+The payload names one `target_skill` (`create-sdd`, `sdd-loop-delivery` or `host-profile`), a stable
+`proposal_key` (lowercase, hyphenated — it is what makes the same finding countable across
+deliveries, so it must survive being re-described), the `defect`, its `consequence`, `evidence` event
+ids or observations, and a `disposition` (`FIXED`, `DOCUMENTED`, `PROPOSED`, `RECORDED_NOT_AMENDED`,
+`ACCEPTED_DEVIATION`). Optional `area` and `remedy` override the playbook's defaults, because the
+role that found the defect usually knows better than a static table where it belongs.
+
+Record it when the finding is made, not at the end: a finding written before a verdict cannot be
+read as an excuse for the verdict. A finding already `FIXED` in the same delivery is reported at low
+severity — it is a record of what happened, not a proposal to do it again.
+
+## What not to build here
+
+- **Do not mature a proposal from one delivery.** A key seen once is a report; `trace` needs the
+  same key from independent deliveries. Running the digest over a single retrospective produces a
+  number that looks like evidence and is not, and the honest output in that state is "one sample".
+- **Do not widen a heuristic into a catalogue.** Where an authoring-time pattern list exists to warn
+  early — the acceptance-method selectors are the current example — the guarantee belongs to a rule
+  that reads the journal instead. Growing the list buys coverage of tools nobody here uses and a
+  second source of truth that rots without anyone noticing.
+- **Do not compensate automatically for what a repository hides.** A root the repository ignores
+  cannot be baselined or witnessed, and the controller says so at the moment it can still be fixed.
+  Silently adding such a root to `generated_paths` would replace a refusal the author can answer
+  with a guess nobody reviews.

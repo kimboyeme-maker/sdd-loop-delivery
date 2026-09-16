@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto'
 import { verifyCoordinatorProof } from '../resource/coordinator-evidence'
 import { verifyRoleEvent } from '../resource/role-signature'
-import { assertRoleEvidence } from '../helpers/role-evidence'
+import { assertRoleProvenance } from '../helpers/role-evidence'
 
 type Item = Record<string, unknown>
 const object = (value: unknown): Item | undefined =>
@@ -41,7 +41,10 @@ function authentic(state: Item, events: readonly Item[], event: Item, token?: st
     return typeof key === 'string' && verifyRoleEvent(event, key)
   }
   try {
-    assertRoleEvidence(state, event, String(event.role))
+    // Provenance only. Authentication asks whether this event was genuinely written by the lease it
+    // names, which an amendment cannot change; whether the evidence still satisfies a current
+    // obligation is a separate question the obligation's own gate asks.
+    assertRoleProvenance(state, event, String(event.role))
     return true
   } catch {
     return false

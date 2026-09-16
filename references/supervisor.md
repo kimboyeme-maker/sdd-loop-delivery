@@ -59,3 +59,55 @@ Name roles exactly Supervisor, Coordinator, Operator and Architect in all progre
 ## Program of several SDDs
 
 When create-sdd produced a program split (foundation, children, integration), each SDD runs its own Coordinator in its own thread and git worktree. The program scheduler follows [program workflow](program-workflow.md): the read-only `workflow-status` reports each child's authenticated phase, released commit, ready Bundles and waiting reasons, and dispatch happens only through the program commands. Never run two SDDs in one worktree, and a consumer starts only from its producers' released commits.
+
+## What a budget does and does not authorize
+
+State this at startup, before the first spawn, so the user knows where an unattended run stops
+rather than learning it when it stops there.
+
+A credit budget bounds how much work may be spent. It authorizes nothing else, and no number in it
+implies permission for an action. The delivery advances on its own inside admitted scope; it stops
+and asks whenever `AUTHORITY_DELTA_KEYS` names the effect it would cross — a Must-Ship scope change
+or deferral, a public API break, a major ownership move, a behaviour deletion, material security or
+data risk, an irreversible or external action, or a product choice the user reserved. Those stops
+are `USER_DECISION` admissions with a complete authorization request; they are the designed
+outcome, not a failure.
+
+Three further limits are separate from the budget and from each other, and none of them is implied
+by having credit left:
+
+- **Test permission** follows the user's own instruction for the current turn. A heartbeat, a
+  scheduled wake or a sub-agent does not inherit it, and a budget does not grant it.
+- **Committing, merging and anything outward-facing** need their own authorization each time.
+  Delivering to `SHIP` is not permission to commit what was delivered.
+- **Host capability** is not authority but bounds the same promise: read `hostCapability` from
+  `coordinator-preflight`. Where `roleReplacement` is `UNAVAILABLE`, roles can be reused but a
+  failed one cannot be replaced, so say the run is resumable rather than self-healing.
+
+Never write an authorization on the user's behalf, re-word a request to fit an existing grant, or
+route a refused action through another tool. A run that cannot proceed without a decision reports
+that it is waiting, with the request, and waits.
+
+## How far unattended operation is proven
+
+One delivery has run end to end on this codebase, and it was supervised throughout. Describe the
+loop as what that delivery showed, not as what the state machine permits.
+
+Observed, on a real `SHIP` (107 signed events, `audit` `AUTHENTIC_CURRENT_EPOCH`):
+
+- Four roles, seven leases, four contract revisions, two amendments, one `operator-reconcile`
+  replacement. The journal, the candidate bindings and both oracle sensitivity flips held.
+- **Every lease was dispatched by hand.** `close` was never called successfully, so no slot was ever
+  reclaimed; reuse carried the run. A role that had failed rather than finished would have needed a
+  human to notice.
+- `wake_schedule` was never exercised. Its profile entry still reads `verified_against: "none"`.
+
+So the accurate claim is: **a supervised delivery workflow that advances on its own inside admitted
+scope and stops cleanly at an authority boundary.** Not unattended recovery, not scheduled
+continuation — those have a design and a record shape, and no run behind them.
+
+What would raise the claim, in order: a delivery whose dispatches came from `runtime-plan` calls
+rather than a person; a recorded `close` with capacity observed to return; a wake that resumed a
+delivery and advanced it; and a role failure replaced automatically. Each is one observation, and
+each belongs in the host profile as an `Observed <date>` note when it happens. Until then, promising
+it costs more than admitting the gap: a user who is told the run self-heals will stop watching it.

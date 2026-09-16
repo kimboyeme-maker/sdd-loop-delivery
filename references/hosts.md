@@ -57,11 +57,15 @@ Rules:
 
 ### Codex capability migration
 
-The bundled profile uses the exposed collaboration tools. `close` and `resume_closed` are unavailable by default; `followup_task` continues a live idle runtime, while `interrupt_agent` stops its turn and preserves reuse. Neither proves closure or releases capacity. Reuse eligible runtimes; if the host limit prevents an independent role, report the concrete capability wait.
+The bundled profile uses the exposed collaboration tools. `close` is unavailable: no exposed tool closes a runtime, `followup_task` continues a live idle one, and `interrupt_agent` stops its turn while preserving reuse — neither proves closure nor releases capacity. Reuse eligible runtimes; if the host limit prevents an independent role, report the concrete capability wait.
+
+`resume_closed` is a different case and the profile says so: it is marked available because the app-server publishes `thread/resume`, which is protocol support, not proof that this session can call it. That is exactly the distinction every profile carries — `availability: "host-tool-probe-required"` and `operation_meaning: "protocol-support-not-session-proof"` in `configuration` output. Read an operation's `available` as "the host protocol defines this", and an `Observed <date>` note as "someone called it here and it worked". Plan from the second, not the first: an operation with no observation is a capability to probe before relying on, and `wake_schedule` states `verified_against: "none"` for precisely this reason.
 
 Official [app-server documentation](https://learn.chatgpt.com/docs/app-server) distinguishes `thread/resume` (reopen a persisted thread), `thread/archive` (archive logs) and `thread/unsubscribe` (unload only after the last subscriber and an inactivity grace period). These methods are not automatically callable by a model, and archival is not a subagent-slot receipt. A verified custom profile may expose a bridge only after it proves exact runtime identity, stop/close postconditions and capacity release separately. Never launch a second app-server or use an unrelated task-management tool to simulate ownership of the current agent tree.
 
 ## Generated calls
+
+A wait call carries `timeout_ms` bounded at 60 seconds, the same ceiling [program workflow](program-workflow.md) sets for a blocking wait while actively communicating, plus a non-argument `deadline_ms` naming how far the lease deadline really is. Re-wait until that deadline; the short timeout is a communication bound, not a poll interval, and `deadline_ms` is plan context the host never receives.
 
 `runtime-plan --sdd <sdd>` renders the next host calls with this profile's call names and parameter names (for example `spawn` → `spawn_agent {task_name, message, fork_turns, model, reasoning_effort}` on Codex, `Agent {description, prompt, model}` on Claude Code). The Coordinator makes the calls and records their results; the plan is never a receipt.
 

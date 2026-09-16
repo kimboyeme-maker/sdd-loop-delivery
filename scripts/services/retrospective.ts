@@ -87,6 +87,12 @@ const PLAYBOOK: Readonly<
     change: 'Recalibrate credit weights or the plan estimate that underpriced this delivery.',
     severity: 'medium'
   },
+  SKILL_FINDING: {
+    target: 'sdd-loop-delivery',
+    area: 'references/evolution.md',
+    change: 'Turn this finding into a rule in the skill it names, or record why it stays a note.',
+    severity: 'high'
+  },
   COMMAND_REJECTION: {
     target: 'sdd-loop-delivery',
     area: 'references/coordinator.md',
@@ -190,6 +196,10 @@ type Issue = {
   count: number
   evidence_event_ids: string[]
   details: string[]
+  /** A role-recorded finding names its own target and remedy; the playbook only supplies defaults. */
+  target?: EvolutionTarget
+  area?: string
+  change?: string
 }
 
 /** Append one rejected command outcome; code and command only, never arguments or secrets. */
@@ -230,16 +240,25 @@ export function retrospective(sdd: string): Item {
   const state = snapshot.state as Item
   const events = parseEvents(snapshot.eventText)
   const issues = new Map<string, Issue>()
-  const note = (kind: string, key: string, event?: Item, detail?: unknown): void => {
+  const note = (
+    kind: string,
+    key: string,
+    event?: Item,
+    detail?: unknown,
+    overrides: Partial<Pick<Issue, 'target' | 'area' | 'change' | 'severity'>> = {}
+  ): void => {
     const id = `${kind}:${key}`
     const issue = issues.get(id) ?? {
       id: '',
       kind,
       key,
-      severity: PLAYBOOK[kind]!.severity,
+      severity: overrides.severity ?? PLAYBOOK[kind]!.severity,
       count: 0,
       evidence_event_ids: [],
-      details: []
+      details: [],
+      ...(overrides.target ? { target: overrides.target } : {}),
+      ...(overrides.area ? { area: overrides.area } : {}),
+      ...(overrides.change ? { change: overrides.change } : {})
     }
     issue.count++
     if (typeof event?.event_id === 'string' && issue.evidence_event_ids.length < EVIDENCE_LIMIT)
@@ -255,6 +274,20 @@ export function retrospective(sdd: string): Item {
   for (const event of events) {
     const payload = object(event.payload) ?? {}
     switch (event.type) {
+      // A role-recorded finding about a skill is the only issue the delivery states in its own
+      // words. It carries its own target, remedy and disposition, so the playbook supplies nothing
+      // but the fallback severity; a finding already fixed in this delivery is recorded, not
+      // proposed again.
+      case 'finding_proposal': {
+        const fixed = payload.disposition === 'FIXED'
+        note('SKILL_FINDING', String(payload.proposal_key), event, payload.defect, {
+          target: payload.target_skill as EvolutionTarget,
+          ...(typeof payload.area === 'string' ? { area: payload.area } : {}),
+          ...(typeof payload.remedy === 'string' ? { change: payload.remedy } : {}),
+          ...(fixed ? { severity: 'low' } : {})
+        })
+        break
+      }
       case 'contract_amendment':
         note('CONTRACT_AMENDMENT', 'amendment', event, payload.reason)
         break
@@ -366,17 +399,19 @@ export function retrospective(sdd: string): Item {
   ordered.forEach((issue, index) => (issue.id = `ISS-${String(index + 1).padStart(2, '0')}`))
   const proposals = ordered.map((issue, index) => {
     const play = PLAYBOOK[issue.kind]!
+    const target = issue.target ?? play.target
+    const area = issue.area ?? play.area
     return {
       id: `EVO-${String(index + 1).padStart(2, '0')}`,
-      key: `${play.target}:${issue.kind}:${issue.key}`,
-      target: play.target,
-      area: play.area,
+      key: `${target}:${issue.kind}:${issue.key}`,
+      target,
+      area,
       issue_ids: [issue.id],
-      change: play.change,
+      change: issue.change ?? play.change,
       // A proposal becomes a rule only through a reproducible Bad/Good pair (behavior evaluation).
       behavior_case: {
         bad: `Delivery repeats ${issue.kind} (${issue.key}) as recorded in ${issue.evidence_event_ids[0] ?? 'the diagnostics'}.`,
-        good: `The ${play.target} guidance at ${play.area} prevents ${issue.kind} before execution.`
+        good: `The ${target} guidance at ${area} prevents ${issue.kind} before execution.`
       },
       maturity: 'report'
     }

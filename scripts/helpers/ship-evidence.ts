@@ -9,6 +9,7 @@ import { createHmac } from 'node:crypto'
 import { assertRoleEvidence } from './role-evidence'
 import { assertWorktreeCandidate } from './worktree-candidate'
 import { assertShip, type ShipRequirement } from '../domain/policies/ship'
+import { assertOracleSensitivity } from '../domain/policies/oracle-insensitivity'
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -46,6 +47,8 @@ export function assertShipEvidence(
       })
     : [events[verificationIndex]!]
   assertRoleEvidence(state, implementation, 'operator')
+  // A claim the contract says cannot hold yet must not already measure green.
+  assertOracleSensitivity(record(state.contract), events)
   const candidate = record(record(implementation.payload).candidate)
   for (const verification of verificationEvents) {
     assertVerificationReviewer(state, events, verification)

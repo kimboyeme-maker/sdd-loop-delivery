@@ -27,6 +27,8 @@ Operator authenticates only through the file named by `SDD_LOOP_AGENT_TOKEN_FILE
 
 Use operator-receipt-scaffold --agent-id <id> --lease-id <id> --type implementation|contract_readback|self_check to obtain the actual event fields. Fill empty values from the current admission and real observations; null results intentionally cannot pass validation. Run operator-receipt-lint --payload-file <file> --type <same-type> before authenticated submission. This lint shares the role payload schema, but does not authenticate identity, inspect the worktree or certify an oracle. Preserve the full rejected payload and fix it; never omit a rejected change to get acceptance. Where a receipt carries `semantic_ownership_review.semantic_ids`, those IDs are the admitted `semantic_ownership.items` from the admission payload, not the SDD prose's own semantic IDs; the two namespaces usually differ, and only the admitted set passes.
 
+An acceptance `method` is a shell command line, but `test-run` takes an argv vector and the runner spawns `argv[0]` directly with no shell (`resource/process-runner.ts`). Run the method verbatim as `sh -c "<method>"` rather than splitting it into naive argv: a method containing a pipe, a redirect or a quoted `-e` script is silently mangled otherwise, and the usual mangling — extra words handed to a test runner as file filters — produces a run that matches nothing and still exits 0. The controller now refuses the mismatch (`TEST_RUN_METHOD_MISMATCH`), checked after every precondition gate so an earlier refusal still names its own cause; a method with no shell syntax may also be split on single spaces.
+
 ## Repair after a failed check
 
 A failing self-check, Finding or rejected verification is diagnosed before any edit:

@@ -494,6 +494,16 @@ export function agentRecord(
     assertPacketCoverage(state, admission, events, body)
     assertSemanticCoverage(state, admission, body)
   }
+  // The same shape check for a verdict, at its producer. Checking it only when the Coordinator later
+  // transitions is too late twice over: the event is already signed and immutable, and `verification`
+  // ends the lease that recorded it, so the only repair is a new lease the reviewer cannot issue.
+  if (type === 'verification') {
+    const admission = currentAdmission(state, events, coordinatorToken).payload as Record<
+      string,
+      unknown
+    >
+    assertSemanticCoverage(state, admission, body)
+  }
   let endsLease =
     [
       'verification',

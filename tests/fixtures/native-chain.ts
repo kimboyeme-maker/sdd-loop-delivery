@@ -27,6 +27,8 @@ const ENV_KEYS = ["SDD_LOOP_COORDINATOR_TOKEN", "SDD_LOOP_AGENT_TOKEN_FILE", "SD
 export type NativeChainOptions = Readonly<{
   /** Execution packets derived from the fixture packet; later packets depend on the previous one. */
   packetIds?: readonly string[];
+  /** Acceptance method this chain declares, for a test that must run something else. */
+  acceptanceMethod?: string;
   /** Normative contract written into the SDD; defaults to the single-package fixture. */
   contract?: Item;
   /** Complete admission payload; its first modification package receives the product file. */
@@ -63,6 +65,28 @@ export function createNativeChain(root: string, options: NativeChainOptions = {}
     }));
   const owner = (admission.modification_packages as string[])[0]!;
   const productFile = owner === "." ? "value.ts" : `${owner}/value.ts`;
+  // The declared method must be the command the fixture actually runs: `test-run` binds argv to the
+  // contract's method, so a fixture whose method was a label ("fixture-check") stopped exercising
+  // the real path the moment that bind existed.
+  const declaredMethod =
+    options.acceptanceMethod ?? `${process.execPath} ${join(dirname(productFile), "check.ts")}`;
+  // One command observes every fixture acceptance, so independence is carried by the environment
+  // rather than the method: the rule keys on the pair, and a shared command is what lets a single
+  // run legitimately cover several acceptance ids.
+  // When another fixture wrote the SDD, its contract is already bound by fingerprint and is
+  // authoritative; only a chain that owns the document may restate the method it will run.
+  if (!options.sdd)
+    for (const [index, item] of ((contract.acceptance ?? []) as Item[]).entries()) {
+      item.method = declaredMethod;
+      item.environment = `isolated fixture ${index + 1}`;
+    }
+  // Admission binds every verification surface to its acceptance method, so both move together.
+  for (const surface of ((admission.verification_scope as Item)?.surfaces ?? []) as Item[])
+    surface.method = declaredMethod;
+  if (typeof (admission.early_falsifier_result as Item)?.method === "string")
+    (admission.early_falsifier_result as Item).method = declaredMethod;
+  const topology = (admission.sdd_convergence_review as Item)?.acceptance_topology as Item;
+  if (topology) topology.method = declaredMethod;
   const semanticReview = {
     semantic_ids: ((admission.semantic_ownership as Item).items as Item[]).map((item) => item.id),
     evidence: ["one value producer"],
@@ -211,6 +235,8 @@ export function createNativeChain(root: string, options: NativeChainOptions = {}
   return {
     sdd,
     workspace,
+    /** The acceptance method this chain declares; test-run binds argv to it. */
+    declaredMethod,
     admission,
     contract,
     productFile,
@@ -230,6 +256,15 @@ export function createNativeChain(root: string, options: NativeChainOptions = {}
     /** Initialize a git product and reach CONTRACT_DRAFT without admission. */
     setup() {
       if (options.sdd) {
+        // The SDD was written by another fixture and its fingerprint is already bound, so its
+        // contract is authoritative here; give the workspace the check that contract names.
+        mkdirSync(join(workspace, dirname(productFile)), { recursive: true });
+        // Pre-implementation bytes, so the Operator's write is a real delta the manifest reports.
+        writeFileSync(join(workspace, productFile), "export const value = 1;");
+        writeFileSync(
+          join(workspace, dirname(productFile), "check.ts"),
+          "import {value} from './value'; if (value !== 2) throw Error('wrong value');",
+        );
         initLoop(sdd, 4);
         authBootstrap(sdd, "DISCOVER", "v1", "yes", COORDINATOR);
         advance("ARCHITECT", "CONTRACT_DRAFT");
@@ -295,7 +330,7 @@ export function createNativeChain(root: string, options: NativeChainOptions = {}
     runTests(
       leaseId: string,
       acceptanceIds: readonly string[] = admission.acceptance_ids as string[],
-      argv: readonly string[] = [process.execPath, join(dirname(productFile), "check.ts")],
+      argv: readonly string[] = ["sh", "-c", declaredMethod],
     ) {
       const result = testRun(
         sdd,
@@ -330,7 +365,7 @@ export function createNativeChain(root: string, options: NativeChainOptions = {}
         phase(),
         "v1",
         acceptanceIds,
-        [process.execPath, join(dirname(productFile), "check.ts")],
+        ["sh", "-c", declaredMethod],
         copy,
         token,
         COORDINATOR,

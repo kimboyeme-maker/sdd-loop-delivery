@@ -7,6 +7,12 @@ export function leafContract(pkg: string) {
   const { contract } = admissionFixture(pkg)
   return {
     ...contract,
+    // A child SDD is written before any chain touches it, and `test-run` binds argv to the declared
+    // method, so the command has to be the real one here rather than a label a fixture patches later.
+    acceptance: (contract.acceptance as Record<string, unknown>[]).map((item) => ({
+      ...item,
+      method: `${process.execPath} ${pkg === '.' ? '' : pkg + '/'}check.ts`
+    })),
     delivery_plan: {
       protocol: 'delivery-plan/v1',
       batches: [

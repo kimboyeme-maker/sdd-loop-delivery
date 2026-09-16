@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { parseEvents } from '../resource/store/event-log'
 import { hostProfile, operatorRuntime, roleRuntime, type HostProfile } from '../config/host'
 import policy from '../../agents/roles.json'
@@ -21,13 +22,27 @@ const ROLE_FOR_OBLIGATION: ReadonlyArray<readonly [string, 'operator' | 'archite
 ]
 /** Host statuses a runtime can be reused from without a new spawn. */
 const REUSABLE = new Set(['idle', 'completed', 'healthy'])
-const WAIT_CAP_MS = 10 * 60_000
+/**
+ * Two ceilings, because two different things are being bounded.
+ *
+ * `INTERACTIVE_WAIT_CAP_MS` is how long one blocking call may hold a turn while a person is waiting
+ * for the Coordinator to say something; the program reference states the same 60 seconds for
+ * supervision. `LEASE_WAIT_CAP_MS` is how far ahead a wait may be aimed at a lease deadline that is
+ * genuinely minutes away. Collapsing them to the smaller number turns a single deadline wait into
+ * a polling loop; collapsing them to the larger one lets a supervised turn go silent for ten
+ * minutes. The plan emits the interactive ceiling and names the deadline it is really waiting for,
+ * so the caller can re-wait without losing the target.
+ */
+const INTERACTIVE_WAIT_CAP_MS = 60_000
+const LEASE_WAIT_CAP_MS = 10 * 60_000
 
 type Call = {
   operation: string
   available: boolean
   call: string | null
   args: Item
+  /** Plan context, never a host argument: how far away the thing being waited for actually is. */
+  deadline_ms?: number
   purpose: string
   record_after: string | null
 }
@@ -38,7 +53,8 @@ function hostCall(
   operation: keyof HostProfile['operations'],
   values: Item,
   purpose: string,
-  recordAfter: string | null
+  recordAfter: string | null,
+  deadlineMs?: number
 ): Call {
   const entry = host.operations[operation]
   if (!entry.available)
@@ -70,6 +86,7 @@ function hostCall(
     available: true,
     call: entry.call ?? null,
     args,
+    ...(deadlineMs === undefined ? {} : { deadline_ms: deadlineMs }),
     purpose,
     record_after: recordAfter
   }
@@ -84,6 +101,23 @@ export { closeDecision, spawnDecision } from '../helpers/runtime-facts'
  * brief's timeout obligation instead of a wait. It executes nothing and grants nothing; dispatch
  * still issues the lease, and every executed call is followed by its runtime-record.
  */
+/**
+ * The facts a role needs before it can do anything, all of them already in the controller: where
+ * the skill and the document are, which packet it holds, and which reference states its protocol.
+ * Filling these mechanically is not a second task graph — the guidance, the scope and the lease
+ * still come from the dispatch the Coordinator makes. It only stops a hand-assembled prompt from
+ * omitting one of them.
+ */
+function handoff(sdd: string, role: 'operator' | 'architect', state: Item): string {
+  return [
+    `You are the ${role} for ${sdd}.`,
+    `Run controller commands with: bun ${resolve(import.meta.dir, '..', 'main.ts')}`,
+    `Read ${resolve(import.meta.dir, '..', '..', 'references', `${role}.md`)} before acting.`,
+    `Contract revision ${String(state.contract_revision ?? 'unknown')}, round ${String(state.logical_round ?? 1)}.`,
+    'Your lease id, capability file, packet, scope and deadlines arrive with the dispatch that follows; do not act before it.'
+  ].join(' ')
+}
+
 export function runtimePlan(sdd: string, token = process.env.SDD_LOOP_COORDINATOR_TOKEN): Item {
   const host = hostProfile()
   const snapshot = readSnapshot(sdd)
@@ -133,9 +167,10 @@ export function runtimePlan(sdd: string, token = process.env.SDD_LOOP_COORDINATO
       hostCall(
         host,
         'wait',
-        { timeout_ms: Math.min(Number(nearest.seconds_remaining) * 1000, WAIT_CAP_MS) },
-        `wait for role events or the nearest deadline (${String(nearest.role)} lease ${String(nearest.lease_id)}) instead of polling`,
-        null
+        { timeout_ms: Math.min(Number(nearest.seconds_remaining) * 1000, INTERACTIVE_WAIT_CAP_MS) },
+        `wait for role events up to the interactive ceiling, then re-wait: the ${String(nearest.role)} lease ${String(nearest.lease_id)} deadline is the real target, not a poll interval`,
+        null,
+        Math.min(Number(nearest.seconds_remaining) * 1000, LEASE_WAIT_CAP_MS)
       )
     )
   }
@@ -157,7 +192,7 @@ export function runtimePlan(sdd: string, token = process.env.SDD_LOOP_COORDINATO
           'idle_continuation',
           {
             target: reusable.agent_id,
-            message: `<dispatch ${role}: pass the returned capabilityFile, lease and guidance>`
+            message: `Continue as ${role} for ${sdd} at contract revision ${String(state.contract_revision ?? 'unknown')}. The dispatch that follows carries your lease id, capability file, packet and deadlines; act only on it.`
           },
           `reuse eligible ${role} ${String(reusable.agent_id)} after dispatch`,
           null
@@ -179,7 +214,7 @@ export function runtimePlan(sdd: string, token = process.env.SDD_LOOP_COORDINATO
         'spawn',
         {
           name: `${role}-${String(state.logical_round ?? 1)}`,
-          prompt: `<${role} handoff: skill path, SDD path, role reference>`,
+          prompt: handoff(sdd, role, state),
           model: runtime.spawn_model,
           effort: runtime.reasoning_effort,
           ...runtime.spawn_args

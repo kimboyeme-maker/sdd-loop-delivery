@@ -1,4 +1,5 @@
 import { existsSync, lstatSync } from 'node:fs'
+import { assertMethodBinding } from '../domain/policies/method-binding'
 import { isAbsolute } from 'node:path'
 import { ACCEPTANCE_TIMEOUT_MAX_SECONDS, TEST_RUN_OUTPUT_TAIL_BYTES } from '../config/constants'
 import { currentAdmission } from '../helpers/admission-authority'
@@ -184,6 +185,16 @@ export function testRun(
     packages,
     candidateEventId: currentCandidateEventId(state as Item, events)
   })
+  // The record about to be signed will report the contract's method, so bind it to what actually
+  // runs. Checked here, after every precondition gate: a command refused for a pending journal or a
+  // diverged copy should say so, and only a run that is otherwise allowed to start needs binding.
+  assertMethodBinding(
+    argv,
+    acceptanceIds.map((id) => ({
+      id,
+      method: definitions.find((entry) => entry.id === id)?.method
+    }))
+  )
   // Scanning inputs takes time. Right before launch, re-check authority and the absolute deadline on
   // fresh state and recompute the timeout: preparation time never extends execution authority.
   const launch = loadControl(sdd)

@@ -81,6 +81,38 @@ function admissionEffects(
   }
 }
 
+/** Evolution targets a delivery may name; a finding about anything else is not this loop's business. */
+const FINDING_TARGETS = ['create-sdd', 'sdd-loop-delivery', 'host-profile']
+
+/**
+ * A finding the delivery makes about the skills themselves, in its own words. This is the only
+ * issue channel the retrospective does not derive: everything else it reports is inferred from
+ * counters and rejection codes, which capture friction but never the substance a role actually
+ * found. The shape is enforced here so the record cannot become a prose dumping ground: a finding
+ * names one target, one stable key, what is wrong, what it costs, and what was done about it.
+ */
+export function assertFindingProposal(payload: Record<string, unknown>): void {
+  const text = (value: unknown): value is string =>
+    typeof value === 'string' && value.trim().length > 0
+  const texts = (value: unknown): value is string[] =>
+    Array.isArray(value) && value.length > 0 && value.every(text)
+  if (
+    !FINDING_TARGETS.includes(String(payload.target_skill)) ||
+    // The key is what makes the same finding countable across deliveries, so it must be stable and
+    // machine-shaped rather than a sentence that will be paraphrased next time.
+    !/^[a-z][a-z0-9-]{3,63}$/.test(String(payload.proposal_key)) ||
+    !text(payload.defect) ||
+    !text(payload.consequence) ||
+    !texts(payload.evidence) ||
+    !['FIXED', 'DOCUMENTED', 'PROPOSED', 'RECORDED_NOT_AMENDED', 'ACCEPTED_DEVIATION'].includes(
+      String(payload.disposition)
+    )
+  )
+    throw new Error(
+      'FINDING_PROPOSAL_INVALID: pass target_skill, proposal_key, defect, consequence, evidence[], disposition'
+    )
+}
+
 /** Record a Coordinator-owned control event without pretending it is role evidence. */
 export function recordEvent(
   sdd: string,
@@ -135,6 +167,7 @@ export function recordEvent(
     )
       throw new Error('TERMINAL_BLOCKER_EVIDENCE_NOT_CONFIRMED')
   }
+  if (type === 'finding_proposal') assertFindingProposal(payload as Record<string, unknown>)
   if (type === 'finding_decision') assertFindingDecision(payload as Record<string, unknown>)
   if (type === 'convergence_review')
     assertAttemptConvergencePayload(state, payload as Record<string, unknown>)

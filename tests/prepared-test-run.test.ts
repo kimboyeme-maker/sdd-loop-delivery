@@ -23,7 +23,18 @@ type Item = Record<string, unknown>
 
 test('a prepared Architect measures packet checks early as information that verification never reuses', () => {
   const root = mkdtempSync(join(tmpdir(), 'prepared-run-'))
-  const chain = createNativeChain(root, { packetIds: ['PC01'] })
+  // test-run binds argv to the declared method, so the command that moves the phase mid-run has to
+  // be the method itself. Both paths it names are known before the chain exists.
+  const sdd = join(root, 'task.md')
+  const copy = join(root, 'prepared-copy')
+  const transitionModule = join(import.meta.dir, '../scripts/controllers/transition.controller.ts')
+  const measuringMethod = `${process.execPath} -e ${JSON.stringify(
+    `const { transition } = await import(${JSON.stringify(transitionModule)}); transition(${JSON.stringify(sdd)}, 'coordinator', 'IMPLEMENTING', 'v1', 'OPERATOR_SELF_CHECK', 'coordinator'); await import(${JSON.stringify(join(copy, 'check.ts'))})`
+  )}`
+  const chain = createNativeChain(root, {
+    packetIds: ['PC01'],
+    acceptanceMethod: measuringMethod
+  })
   const events = () =>
     readFileSync(chain.sdd + '.events.jsonl', 'utf8')
       .trim()
@@ -48,7 +59,6 @@ test('a prepared Architect measures packet checks early as information that veri
       COORDINATOR
     )
     process.env.SDD_LOOP_AGENT_TOKEN_FILE = granted.capabilityFile
-    const copy = join(root, 'prepared-copy')
     cpSync(chain.workspace, copy, { recursive: true })
     const preparedRun = (argv: readonly string[]) =>
       testRun(
@@ -127,15 +137,7 @@ test('a prepared Architect measures packet checks early as information that veri
     writeFileSync(join(copy, chain.productFile), 'export const value = 2;')
     // Ordinary phase advancement while the check runs keeps its result: the command itself moves
     // the delivery to OPERATOR_SELF_CHECK before the controller registers the measurement.
-    const transitionModule = join(
-      import.meta.dir,
-      '../scripts/controllers/transition.controller.ts'
-    )
-    const measured = preparedRun([
-      process.execPath,
-      '-e',
-      `const { transition } = await import(${JSON.stringify(transitionModule)}); transition(${JSON.stringify(chain.sdd)}, 'coordinator', 'IMPLEMENTING', 'v1', 'OPERATOR_SELF_CHECK', 'coordinator'); await import(${JSON.stringify(join(copy, 'check.ts'))})`
-    ])
+    const measured = preparedRun(['sh', '-c', measuringMethod])
     expect(chain.phase()).toBe('OPERATOR_SELF_CHECK')
     expect(measured.eventId).toStartWith('EVT-')
     expect(measured.outcome).toBe('PASS')
