@@ -40,7 +40,16 @@ export const COORDINATOR_BRIEF_RECENT_EVENTS = 8
 /** Bytes of combined test output kept in a test_run event; the full output is only hashed. */
 export const TEST_RUN_OUTPUT_TAIL_BYTES = 2000
 export const RUNTIME = 'bun' as const
-export const MINIMUM_BUN = '1.4.2' as const
+/**
+ * The Bun this controller is developed and tested on. It is reported, never enforced: the runtime
+ * belongs to the workspace, and a repository that pins its own Bun is stating the version its
+ * product is built and tested against. Refusing to run there would strand every role that inherits
+ * that toolchain in order to protect a number no one had measured a need for. Where a workspace
+ * pins nothing, the ambient Bun governs. Report this value so a failure on an older runtime is
+ * diagnosable, and treat any such failure as evidence about a real incompatibility rather than as
+ * a reason to gate.
+ */
+export const DEVELOPED_ON_BUN = '1.4.2' as const
 export const TYPESCRIPT = '>=7' as const
 export const ROLES = ['Supervisor', 'Coordinator', 'Operator', 'Architect'] as const
 export type Role = (typeof ROLES)[number]

@@ -6,15 +6,6 @@ import { assertUniqueFlags, flagValue } from './helpers/flag'
 import { assertCommandOptions, commandFlags } from './commands/options'
 import { initializeCommandContext } from './context/command-context'
 import { COORDINATOR_TOKEN_FILE_ENV, readCapabilityFile } from './resource/role-capability'
-import { MINIMUM_BUN } from './config/constants'
-import { olderThan } from './helpers/runtime-version'
-
-// A repository may pin an older Bun than the controller needs (a workspace `mise.toml`, for
-// example). Fail on the version, not later on a missing runtime behavior.
-if (olderThan(Bun.version, MINIMUM_BUN)) {
-  console.error(`RUNTIME_BUN_TOO_OLD: ${Bun.version} < ${MINIMUM_BUN}`)
-  process.exit(2)
-}
 
 /** CLI entry: validate the invocation, then run the command's handler from the composition root. */
 const args = Bun.argv.slice(2)

@@ -81,8 +81,10 @@ by having credit left:
 - **Committing, merging and anything outward-facing** need their own authorization each time.
   Delivering to `SHIP` is not permission to commit what was delivered.
 - **Host capability** is not authority but bounds the same promise: read `hostCapability` from
-  `coordinator-preflight`. Where `roleReplacement` is `UNAVAILABLE`, roles can be reused but a
-  failed one cannot be replaced, so say the run is resumable rather than self-healing.
+  `coordinator-preflight`. `PROFILE_SUPPORTED` closes a runtime and returns its slot;
+  `INTERRUPT_ONLY` frees execution capacity without closing anything, so a failed role can be stood
+  aside and replaced while its entry remains; `UNAVAILABLE` does neither, and the run is resumable
+  rather than self-healing. Say which of the three applies before the first spawn.
 
 Never write an authorization on the user's behalf, re-word a request to fit an existing grant, or
 route a refused action through another tool. A run that cannot proceed without a decision reports
@@ -100,7 +102,11 @@ Observed, on a real `SHIP` (107 signed events, `audit` `AUTHENTIC_CURRENT_EPOCH`
 - **Every lease was dispatched by hand.** `close` was never called successfully, so no slot was ever
   reclaimed; reuse carried the run. A role that had failed rather than finished would have needed a
   human to notice.
-- `wake_schedule` was never exercised. Its profile entry still reads `verified_against: "none"`.
+- `wake_schedule` was never exercised in that delivery. A later Codex probe did exercise it end to
+  end: created, fired — a heartbeat input arrived carrying `automation_id` and `current_time_iso` —
+  and deleted. The host's approval review refused the create until the user authorized it. The
+  interval is still unmeasured, because the create receipt has no timestamp: rely on being woken,
+  not on being woken at a stated time.
 
 So the accurate claim is: **a supervised delivery workflow that advances on its own inside admitted
 scope and stops cleanly at an authority boundary.** Not unattended recovery, not scheduled

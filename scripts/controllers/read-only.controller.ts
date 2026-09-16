@@ -18,7 +18,7 @@ import {
   ACCEPTANCE_TIMEOUT_MAX_SECONDS,
   MAX_BATCH_MINUTES,
   MAX_NEW_TEST_FILES_PER_BATCH,
-  MINIMUM_BUN,
+  DEVELOPED_ON_BUN,
   PROTOCOL,
   RUNTIME,
   TEST_BUDGET_MAX_MINUTES,
@@ -40,7 +40,10 @@ export function configuration(): object {
     skill: 'sdd-loop-delivery',
     protocol: PROTOCOL,
     runtime: RUNTIME,
-    minimumBun: MINIMUM_BUN,
+    developedOnBun: DEVELOPED_ON_BUN,
+    // The runtime actually executing this controller, so a failure on an older or newer one is
+    // diagnosable from the report rather than guessed at. The workspace owns the version.
+    runningBun: Bun.version,
     typescript: TYPESCRIPT,
     roles: roleTable(),
     host: hostCapabilities(),

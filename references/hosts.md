@@ -57,9 +57,125 @@ Rules:
 
 ### Codex capability migration
 
-The bundled profile uses the exposed collaboration tools. `close` is unavailable: no exposed tool closes a runtime, `followup_task` continues a live idle one, and `interrupt_agent` stops its turn while preserving reuse — neither proves closure nor releases capacity. Reuse eligible runtimes; if the host limit prevents an independent role, report the concrete capability wait.
+Probed in a Codex session on 2026-09-16, by calling the tools rather than reading about them.
 
-`resume_closed` is a different case and the profile says so: it is marked available because the app-server publishes `thread/resume`, which is protocol support, not proof that this session can call it. That is exactly the distinction every profile carries — `availability: "host-tool-probe-required"` and `operation_meaning: "protocol-support-not-session-proof"` in `configuration` output. Read an operation's `available` as "the host protocol defines this", and an `Observed <date>` note as "someone called it here and it worked". Plan from the second, not the first: an operation with no observation is a capability to probe before relying on, and `wake_schedule` states `verified_against: "none"` for precisely this reason.
+Two surfaces exist and they are not interchangeable. **Collaboration agents** are addressed by a
+path handle: `spawn_agent({task_name, message, fork_turns})` returns `{"task_name":"/root/<name>"}`,
+and `followup_task`, `send_message`, `interrupt_agent` and `list_agents` all take that path as
+`target`. **Codex threads** are addressed by `threadId`: `create_thread` takes a nested `target`
+object, `send_message_to_thread` takes `{threadId, prompt}`, and `wait_threads` takes up to eight
+`{threadId}` entries. Handing a collaboration path to the thread surface fails — archiving one
+answered `No Codex thread found`.
+
+Waiting on a collaboration child is `wait_agent({timeout_ms})`, which returned
+`{"message":"Wait completed.","timed_out":false}`. `list_agents` reports `running`, `interrupted`
+or the object `{"completed":"<last reply>"}`; there is no `idle`, so record a completed object as
+completed rather than expecting a bare string.
+
+`close` is unavailable: no tool closes an agent, and archiving rejects the handle. `interrupt_agent`
+leaves the entry listed as `interrupted` — but it does free execution capacity. With three running
+children a fourth spawn failed with `collab spawn failed: agent thread limit reached`, and after
+interrupting all three a new spawn succeeded. Capacity counts running turns, not entries, so a
+failed role can be stood aside and replaced even though nothing proves its runtime was released.
+`coordinator-preflight` reports that as `roleReplacement: INTERRUPT_ONLY`.
+
+`resume_closed` is unavailable here. `thread/resume` exists in the published protocol and is not
+exposed as a tool in the session, and a collaboration child has no `threadId` to resume; an idle one
+is continued with `followup_task`.
+
+Scheduling is `automation_update`, and it has no `prompt/interval` form: creation takes
+`mode: "create"`, `kind: "cron" | "heartbeat"`, `name`, `prompt` and an RRULE string, with a
+heartbeat adding `destination: "thread"` and `targetThreadId`. A create returned
+`{"automationId":…,"status":"ACTIVE"}`; deletion is `{id, mode: "delete"}` and answered
+`{"deleteStatus":"deleted","snapshot":{…}}`, so an automation can be withdrawn by the id its create
+returned. This host's approval review refused the create until the user authorized it explicitly —
+treat scheduling as a user-authorized action, never as automatic continuation.
+
+It fires. The host delivered a heartbeat input into the target thread carrying `automation_id`,
+`current_time_iso` and the creation prompt, and the automation was deleted afterwards. What remains
+unverified is the **interval**: the create receipt carries no timestamp, so nothing in these
+receipts measures the gap between creating and firing. One delivery proves a wake arrives, not that
+it arrives on the declared RRULE — so a plan may rely on being woken, and may not rely on being
+woken at a particular time. An automation left `ACTIVE` keeps firing; a probe that is not deleted is
+a side effect someone has to clean up.
+
+The thread surface was probed the same way on 2026-09-16. `create_thread` works for
+`{type:"projectless"}` and `{type:"project", …, environment:{type:"local"}}`, both returning a real
+`threadId`; `send_message_to_thread` starts a turn and returns only the id, with the reply read
+through `wait_threads`, whose result carries the assistant text directly and whose `timeoutMs` is
+capped at 120000 — a much lower ceiling than `wait_agent`'s.
+
+Two findings bound what can be planned on it. **A worktree-bound create is not addressable**: it
+answers with a provisional `clientThreadId` that `wait_threads`, `read_thread` and
+`set_thread_archived` all reject, while the worktrees really do appear on disk — so such a task can
+be started and then neither driven nor cleaned up. **`list_threads` takes only `limit`**; `cwd`,
+`searchTerm`, `archived` and the rest are rejected, and threads created in-session never appeared in
+it at all. A `threadId` that is lost is lost, so the earlier note about recovering a child by
+filtering on `cwd` is false and has been removed.
+
+Archive and restore do work as a resume for a thread whose id you still hold, which is why
+`resume_closed` is available on the thread surface and nowhere else; the restored thread completed a
+new turn. Archiving reports status `notLoaded`, which is a status and not a capacity receipt.
+Threads and collaboration children draw on separate quotas: five threads coexisted with three
+running children, and the fourth child was still refused.
+
+### Running roles as threads on Codex
+
+The collaboration quota is not a number anyone may plan against. A fourth concurrent child was
+refused with `collab spawn failed: agent thread limit reached` while three ran, yet far larger
+counts have been seen in other sessions — dozens of children in one thread — because the host
+manages child lifecycle itself and releases capacity on its own schedule. So the ceiling is real,
+moving, and invisible until it bites.
+
+That rules out the obvious guard: comparing a planned role or shard count against a recorded
+concurrency figure would turn an observation of one moment into a hard gate, and would refuse
+deliveries that would have run. React to a refusal instead — `SPAWN_BLOCKED_BY_LIMIT` already does,
+and interrupting a working role is the only way to make room on demand, which is a cost, not a
+remedy. What follows is that a delivery needing several concurrent roles at once, such as parallel
+final-verification shards, may fail at its last phase for reasons nothing earlier could predict.
+
+Threads are the way out, and they were probed as role runtimes on 2026-09-16. A
+`{type:"project", environment:{type:"local"}}` thread runs in the project root, reads repository
+files, executes shell, keeps context across turns, and completed a 96-second turn without being cut
+off. Its `threadId` is not bound to whoever created it: another collaboration child read that
+thread, messaged it and waited on it. Five threads existed while three collaboration children ran and a fourth child was still refused, so
+thread creation did not draw on the collaboration allowance in that arrangement; twelve threads were
+then created in sequence, which bounds creations rather than concurrency. Neither figure is a quota.
+
+Two limits shape any such plan.
+
+**The toolchain follows the directory.** The thread's shell activates the workspace's version
+manager, so a thread-hosted role runs the controller on the repository's pinned Bun — observed as
+1.3.14 in a workspace whose pin says so, while the ambient one was 1.4.2. That is the intended
+arrangement and the controller does not refuse it; `configuration` reports `runningBun` beside
+`developedOnBun` so a runtime-attributable failure can be recognised rather than guessed at.
+
+**Worktree-bound threads were unusable by every route tried.** Nine were tried against the
+provisional `clientThreadId` — `wait_threads`, `read_thread`, `list_threads`,
+`list_archived_threads`, `fork_thread`, `handoff_thread`, `get_handoff_status`, retrying after a
+minute, and having the child report its own id back — and all nine failed while the worktrees
+appeared on disk. Nine failures are strong evidence and not a proof that no route exists; plan as if
+unaddressable and revisit if the host publishes a way to resolve a provisional id. So a thread-hosted
+role works in the shared project checkout, and per-role or per-child worktrees do not.
+
+Both facts are declared, not left to a reader: every profile carries `role_hosting` with a
+`default` mode and an entry per mode naming the operations that create, continue and wait on a role
+there, the conditions that must hold, and its evidence. Two separate flags matter. `available` is
+about the host — whether it can host a role that way at all. `wired` is about this controller —
+whether the plan can actually produce that mode's create, continue and wait calls.
+
+Today only `collaboration` is wired. `thread` is available on Codex and records everything the
+probes established, but the controller does not build the nested `target` a `create_thread` call
+needs and does not generate that mode's continue and wait calls either, so `runtime-plan` stays on
+the collaboration path and `coordinator-preflight` reports `wired: false` beside the mode. Switching
+is therefore not a profile edit: it needs those three calls generated with real arguments and a way
+to bind the created thread's identity. Claude Code declares `thread` unavailable outright, because
+its subagents live inside the session and there is no independently addressable runtime.
+
+Each operation carries an `evidence` field, and it is the only thing to plan from: `invoked` means a
+call was made here and worked, `schema` means the shape is known and nobody called it, `partial`
+means part of the operation was exercised and the part that matters was not, and anything else means
+nothing was recorded. `configuration` and `coordinator-preflight` both surface it.
 
 Official [app-server documentation](https://learn.chatgpt.com/docs/app-server) distinguishes `thread/resume` (reopen a persisted thread), `thread/archive` (archive logs) and `thread/unsubscribe` (unload only after the last subscriber and an inactivity grace period). These methods are not automatically callable by a model, and archival is not a subagent-slot receipt. A verified custom profile may expose a bridge only after it proves exact runtime identity, stop/close postconditions and capacity release separately. Never launch a second app-server or use an unrelated task-management tool to simulate ownership of the current agent tree.
 

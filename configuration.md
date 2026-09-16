@@ -22,9 +22,9 @@ Models are resolved from the role tier through the active host profile (`codex`,
 | `idle_continuation` | true | `followup_task` | target, message |
 | `wait` | true | `wait_agent` | timeout_ms |
 | `interrupt_turn` | true | `interrupt_agent` | target |
-| `close` | false | No close tool in the bundled collaboration surface. Interrupt preserves the runtime; archive/unsubscribe do not prove released capacity. Enable only through a verified custom host bridge. |  |
+| `close` | false | No close tool is exposed. interrupt_agent stops the turn and frees execution capacity but leaves the agent listed; set_thread_archived rejects a collaboration handle ("No Codex thread found"); no unsubscribe tool exists. A role can therefore be interrupted and replaced by a new spawn, but no call proves its runtime was released. |  |
 | `observe` | true | `list_agents` | path_prefix |
-| `resume_closed` | true | `thread/resume` | threadId |
+| `resume_closed` | true | `set_thread_archived` | threadId, archived, hostId |
 | `goal_create` | true | `create_goal` | objective |
 | `goal_read` | true | `get_goal` |  |
 | `goal_complete` | true | `update_goal` | status |
@@ -35,11 +35,11 @@ Models are resolved from the role tier through the active host profile (`codex`,
 | `turn_interrupt` | true | `turn/interrupt` | threadId, turnId |
 | `usage_read` | true | `account/usage/read` |  |
 | `user_goal_control` | true | `/goal pause\|resume\|clear` |  |
-| `task_create` | true | `create_thread` | project_id, host_id, base_commit, prompt, worktree |
-| `task_message` | true | `send_message_to_thread` | thread_id, message |
-| `task_wait` | true | `turn/completed` | threadId, turnId, status |
-| `task_list` | true | `thread/list` | cursor, limit, sortKey, sortDirection, cwd, searchTerm, archived, isPinned |
-| `wake_schedule` | true | `automation_update` | prompt, interval |
+| `task_create` | true | `create_thread` | prompt, target, model, thinking, title |
+| `task_message` | true | `send_message_to_thread` | threadId, prompt, hostId, model, thinking |
+| `task_wait` | true | `wait_threads` | targets, timeoutMs |
+| `task_list` | true | `list_threads` | limit |
+| `wake_schedule` | true | `automation_update` | mode, kind, name, prompt, rrule, status, destination, targetThreadId, notificationPolicy, executionEnvironment, model, reasoningEffort, projectId, id |
 | `project_discover` | true | `list_projects` |  |
 
 ## Operator profiles
@@ -61,10 +61,10 @@ Test time, share, file-count and acceptance-timeout constants are defaults. Larg
 | `ACCEPTANCE_TIMEOUT_MAX_SECONDS` | `900` |
 | `COORDINATOR_BRIEF_RECENT_EVENTS` | `8` |
 | `DEFAULT_CREDIT_BUDGET_PER_ROUND` | `60` |
+| `DEVELOPED_ON_BUN` | `1.4.2` |
 | `ESCALATED_OPERATOR_MIN_FAILURES` | `2` |
 | `MAX_BATCH_MINUTES` | `60` |
 | `MAX_NEW_TEST_FILES_PER_BATCH` | `1` |
-| `MINIMUM_BUN` | `1.4.2` |
 | `PROTOCOL` | `sdd-loop-delivery/v1` |
 | `RUNTIME` | `bun` |
 | `SDD_DOCUMENT_ID_PATTERN` | `^[A-Z]{2}[0-9]{2,4}$` |

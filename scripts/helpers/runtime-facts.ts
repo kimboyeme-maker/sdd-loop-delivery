@@ -84,6 +84,19 @@ export function spawnDecision(events: readonly Item[]): SpawnDecision {
     )
   )
     return 'ALLOWED'
+  // A host without `close` can still free capacity: interrupting a running role ends its turn, and
+  // on at least one host that is exactly what lets the next spawn through. Without this, a delivery
+  // on such a host sits at LIMIT_UNCHANGED forever, because no close will ever be recorded and the
+  // host reports no slot count to observe. One interruption permits one attempt: the retry is
+  // consumed by the next spawn_result whatever its outcome, so the same evidence cannot reopen the
+  // door twice, and nothing here claims that capacity was released - only that something changed.
+  const interruptedAt = after.findLastIndex(
+    (record) => record.action === 'interrupt_result' && record.ended_turn === true
+  )
+  if (interruptedAt >= 0)
+    return after.slice(interruptedAt + 1).some((record) => record.action === 'spawn_result')
+      ? 'LIMIT_UNCHANGED'
+      : 'ALLOWED'
   const freshAt = after.findLastIndex(
     (record) =>
       record.action === 'capacity' &&

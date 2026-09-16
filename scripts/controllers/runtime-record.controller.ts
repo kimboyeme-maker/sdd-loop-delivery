@@ -29,7 +29,11 @@ const ACTIONS = new Set([
   // Host usage accounting from the `usage_read` operation; calibrates relative credit.
   'usage',
   // Host capacity observed by the current Coordinator (slots, time, source).
-  'capacity'
+  'capacity',
+  // A role's turn was interrupted. On a host without `close` this is the only thing that can free
+  // execution capacity, so it is recorded as what it is - a turn ended - and never as a release:
+  // `ended_turn` says the turn stopped, and nothing here claims the runtime went away.
+  'interrupt_result'
 ])
 // `coordinator` names a historical Coordinator recorded as a host resource, never a product role.
 const ROLES = new Set(['operator', 'architect', 'coordinator'])

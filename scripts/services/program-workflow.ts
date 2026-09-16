@@ -403,6 +403,34 @@ export function programNext(path: string, raw: Input): object {
   })
 }
 
+/**
+ * Whether the scheduler may create this child itself. A host that can create a worktree task but
+ * cannot address the one it created is no better than a host that cannot create one: the scheduler
+ * would start a child it can neither drive, wait on, nor reclaim. Both route to the attended path,
+ * where the user starts the task and reports its identifier; binding checks the same facts either
+ * way.
+ */
+export function creationHostCall(
+  create: Readonly<{
+    available: boolean
+    call?: string
+    params?: readonly string[]
+    reason?: string
+    worktree_addressable?: boolean
+  }>
+): object {
+  if (create.available && create.worktree_addressable !== false)
+    return { operation: 'task_create', call: create.call, params: create.params ?? [] }
+  return {
+    operation: 'task_create',
+    available: false,
+    reason: create.available
+      ? 'The host creates worktree-bound tasks but returns only a provisional identifier that no other call accepts, so a created child cannot be driven, waited on or reclaimed.'
+      : create.reason,
+    fallback: 'USER_CREATES_TASK'
+  }
+}
+
 /** Every creation/retry prompt carries the actual source and frozen input versions. */
 function creationAction(d: ProgramDocument, run: ProgramRun, id: string): object {
   const b = d.bundles.find((x) => x.id === id)!,
@@ -415,15 +443,11 @@ function creationAction(d: ProgramDocument, run: ProgramRun, id: string): object
     intent_id: slot.intent_id,
     project_ref: run.project_ref,
     host_ref: run.host_ref,
-    // Without task_create the user starts the task; binding checks the same facts either way.
-    host_call: create.available
-      ? { operation: 'task_create', call: create.call, params: create.params ?? [] }
-      : {
-          operation: 'task_create',
-          available: false,
-          reason: create.reason,
-          fallback: 'USER_CREATES_TASK'
-        },
+    // A child must run in its own worktree, so a host that can create a task but cannot address the
+    // one it created is no better than a host that cannot create one: the scheduler would start a
+    // child it can neither drive nor reclaim. Both cases route to the same attended path, where the
+    // user starts the task and reports its identifier. Binding checks the same facts either way.
+    host_call: creationHostCall(create),
     base_commit: slot.base_commit,
     required_commits: slot.required_commits,
     source_sdd: d.files[b.owner],

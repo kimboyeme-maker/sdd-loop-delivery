@@ -74,11 +74,17 @@ test('a scheduled workflow waits for its wake, dispatches through task_create an
           host_receipt: 'automation_update'
         })
         const create = programNext(path, auth(2)) as Result
+        // Codex can create a worktree task but cannot address the one it created, so the scheduler
+        // routes to the attended path rather than starting a child it could neither drive nor
+        // reclaim. A creator that cannot be addressed is worth no more than no creator at all.
         expect(create).toMatchObject({
           action: 'CREATE_TASK',
           bundle_id: 'BA',
-          host_call: { operation: 'task_create', call: 'create_thread' }
+          host_call: { operation: 'task_create', available: false, fallback: 'USER_CREATES_TASK' }
         })
+        expect(String((create.host_call as Record<string, unknown>).reason)).toContain(
+          'provisional identifier'
+        )
         // The consumer waits for the producer's released commit.
         expect(create.ready).toEqual([])
         const worktree = join(scratch, 'a')

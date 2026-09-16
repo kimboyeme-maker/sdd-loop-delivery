@@ -59,3 +59,35 @@ test('a dispatch prompt carries the facts the controller already has, and nothin
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('a wait is not emitted below the host floor, because the deadline is then the next event', () => {
+  const root = mkdtempSync(join(tmpdir(), 'runtime-floor-'))
+  const chain = createNativeChain(root)
+  try {
+    chain.setup()
+    chain.admit()
+    chain.readback()
+    const previous = process.env.SDD_LOOP_HOST
+    process.env.SDD_LOOP_HOST = 'codex'
+    try {
+      const plan = runtimePlan(chain.sdd) as Item
+      const wait = (plan.calls as Item[]).find((call) => call.operation === 'wait')
+      const floor = 10_000
+      if (wait) {
+        // Rounding a near-expiry wait up to the floor would wait past the deadline it is watching.
+        expect(Number((wait.args as Item).timeout_ms)).toBeGreaterThanOrEqual(floor)
+        expect(Number((wait.args as Item).timeout_ms)).toBeLessThanOrEqual(60_000)
+      } else {
+        expect(
+          (plan.lifecycle as Item[]).some((entry) => entry.decision === 'DEADLINE_IMMINENT_NO_WAIT')
+        ).toBe(true)
+      }
+    } finally {
+      if (previous === undefined) delete process.env.SDD_LOOP_HOST
+      else process.env.SDD_LOOP_HOST = previous
+    }
+  } finally {
+    chain.restore()
+    rmSync(root, { recursive: true, force: true })
+  }
+})

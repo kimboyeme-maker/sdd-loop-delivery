@@ -70,7 +70,37 @@ export type HostProfile = {
   >
   concurrency: { config_key: string | null }
   operations: Record<HostOperation, Operation>
+  /**
+   * Where a delivery role may actually run. `collaboration` is the in-session child topology the
+   * `spawn` operation creates; `thread` is an independent task addressed by its own identifier.
+   * They are not interchangeable and a host may support either, both, or neither: a collaboration
+   * child shares the session's capacity, while a thread carries its own environment and is
+   * addressable by any context holding its id. `default` is the mode to plan with; a mode entry
+   * states the operations that create and drive it and the conditions under which it works.
+   */
+  role_hosting?: {
+    default: RoleHostingMode
+    modes: Partial<Record<RoleHostingMode, RoleHostingEntry>>
+  }
 }
+
+export type RoleHostingMode = 'collaboration' | 'thread'
+export type RoleHostingEntry = Readonly<{
+  available: boolean
+  /**
+   * Whether the plan can actually produce this mode's calls. Availability is about the host;
+   * `wired` is about this controller. Creating a thread needs a `target` the controller does not
+   * know how to build, and continuing and waiting on one use different operations than the
+   * collaboration path, so declaring the mode is not the same as being able to drive it.
+   */
+  wired?: boolean
+  /** Neutral operation names that create, continue and wait on a role in this mode. */
+  operations: Readonly<{ create: HostOperation; continue: HostOperation; wait: HostOperation }>
+  /** What must hold for a role to work here at all, in the operator's words. */
+  requires?: readonly string[]
+  reason?: string
+  evidence?: 'invoked' | 'schema' | 'partial' | 'none'
+}>
 
 const BUNDLED: Readonly<Record<string, unknown>> = { codex, 'claude-code': claudeCode, generic }
 

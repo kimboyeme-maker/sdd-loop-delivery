@@ -7,7 +7,7 @@ LOOP="bun ~/.codex/skills/sdd-loop-delivery/scripts/main.ts"
 SDD=/absolute/path/to/task.sdd.md
 ```
 
-Run the controller on Bun `1.4.2` or newer. A repository may pin an older Bun for its own product (a workspace `mise.toml`, for example); every command then exits with `RUNTIME_BUN_TOO_OLD` naming both versions. Run the controller with your own Bun instead of the repository's pinned one.
+The runtime belongs to the workspace. Run the controller with whatever Bun the repository pins — a workspace `mise.toml` or `packageManager` field is that repository stating the version its product is built and tested against — and with the ambient Bun where a workspace pins none. `configuration` reports both `runningBun` and `developedOnBun` so a failure attributable to the runtime is diagnosable; the controller does not refuse to start on a version it was not developed on, because doing so would strand every role that inherits the workspace toolchain.
 
 Mutating commands authenticate with the Coordinator credential. Export it privately (`SDD_LOOP_COORDINATOR_TOKEN`, or the `capabilityFile` the controller minted) and never paste it into chats, receipts or tickets. Every mutation also needs the current `--expected-state` and `--expected-revision`; read them from `status` right before running it.
 

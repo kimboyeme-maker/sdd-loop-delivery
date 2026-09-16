@@ -163,16 +163,30 @@ export function runtimePlan(sdd: string, token = process.env.SDD_LOOP_COORDINATO
     const nearest = live.reduce((a, b) =>
       Number(a.seconds_remaining) <= Number(b.seconds_remaining) ? a : b
     )
-    calls.push(
-      hostCall(
-        host,
-        'wait',
-        { timeout_ms: Math.min(Number(nearest.seconds_remaining) * 1000, INTERACTIVE_WAIT_CAP_MS) },
-        `wait for role events up to the interactive ceiling, then re-wait: the ${String(nearest.role)} lease ${String(nearest.lease_id)} deadline is the real target, not a poll interval`,
-        null,
-        Math.min(Number(nearest.seconds_remaining) * 1000, LEASE_WAIT_CAP_MS)
+    // A host's wait has a floor as well as a ceiling. Asking for less than the floor is an invalid
+    // call, and rounding it up to the floor would wait past a deadline that is about to fire, so
+    // close to expiry there is nothing useful to wait for: the deadline itself is the next event,
+    // and the brief's timeout obligation already covers it.
+    const floor = Number(object(host.operations.wait.limits)?.min_ms ?? 0)
+    const remaining = Number(nearest.seconds_remaining) * 1000
+    if (remaining < floor)
+      lifecycle.push({
+        role: String(nearest.role),
+        decision: 'DEADLINE_IMMINENT_NO_WAIT',
+        lease_id: nearest.lease_id,
+        seconds_remaining: nearest.seconds_remaining
+      })
+    else
+      calls.push(
+        hostCall(
+          host,
+          'wait',
+          { timeout_ms: Math.max(floor, Math.min(remaining, INTERACTIVE_WAIT_CAP_MS)) },
+          `wait for role events up to the interactive ceiling, then re-wait: the ${String(nearest.role)} lease ${String(nearest.lease_id)} deadline is the real target, not a poll interval`,
+          null,
+          Math.min(Number(nearest.seconds_remaining) * 1000, LEASE_WAIT_CAP_MS)
+        )
       )
-    )
   }
   // After a LIMIT, creation is proposed again only once recorded capacity changed.
   const spawn = spawnDecision(events)
@@ -208,18 +222,32 @@ export function runtimePlan(sdd: string, token = process.env.SDD_LOOP_COORDINATO
       role === 'operator'
         ? operatorRuntime(policy.roles.operator.default_profile, host)
         : roleRuntime('architect', host)
+    // Where a role runs is a host fact, not a preference: a profile whose default mode is `thread`
+    // creates the role as an independent task instead of an in-session child, because that is the
+    // surface whose capacity it can actually predict.
+    const hosting = host.role_hosting
+    const declared = hosting?.default ?? 'collaboration'
+    const entry = hosting?.modes?.[declared]
+    // Only a wired mode is planned. A mode the host offers but this controller cannot drive end to
+    // end would produce a create call with no usable arguments and then continue and wait through
+    // the other mode's operations, which is worse than staying on the path that works.
+    const usable = entry?.available === true && entry.wired === true
+    const mode = usable ? declared : 'collaboration'
+    const create = usable ? entry!.operations.create : 'spawn'
     calls.push(
       hostCall(
         host,
-        'spawn',
+        create,
         {
           name: `${role}-${String(state.logical_round ?? 1)}`,
           prompt: handoff(sdd, role, state),
           model: runtime.spawn_model,
           effort: runtime.reasoning_effort,
-          ...runtime.spawn_args
+          ...(create === 'spawn' ? runtime.spawn_args : {})
         },
-        `no eligible ${role}: spawn at tier ${runtime.tier}`,
+        `no eligible ${role}: create at tier ${runtime.tier} in ${mode} mode${
+          usable && entry?.requires?.length ? `; ${entry.requires.join(' ')}` : ''
+        }`,
         'runtime-record spawn_result, then observe'
       )
     )
